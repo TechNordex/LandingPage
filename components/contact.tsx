@@ -6,14 +6,31 @@ import { Mail, Phone, MapPin, Send } from "lucide-react"
 export function Contact() {
   const [form, setForm] = useState({ name: "", email: "", message: "" })
   const [sent, setSent] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSent(true)
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Erro desconhecido")
+      setSent(true)
+    } catch (err: any) {
+      setError(err.message || "Erro ao enviar mensagem. Tente novamente.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -169,11 +186,24 @@ export function Contact() {
                   />
                 </div>
 
+                {error && (
+                  <p className="text-sm text-red-500 bg-red-500/10 rounded-md px-4 py-2">{error}</p>
+                )}
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-md bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
+                  disabled={loading}
+                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-md bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Enviar mensagem <Send size={18} />
+                  {loading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-primary-foreground/40 border-t-primary-foreground rounded-full animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      Enviar mensagem <Send size={18} />
+                    </>
+                  )}
                 </button>
               </form>
             )}

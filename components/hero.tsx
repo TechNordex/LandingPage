@@ -32,13 +32,11 @@ export function Hero() {
         className="relative z-10 text-center text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-balance max-w-5xl"
         style={{ fontFamily: "var(--font-space-grotesk)" }}
       >
-        Soluções digitais que{" "}
-        <span className="text-primary">transformam</span>{" "}
-        o seu negócio
+        Soluções digitais que <span className="text-primary">transformam</span> o seu negócio
       </h1>
 
       <p className="relative z-10 mt-6 text-center text-lg md:text-xl text-muted-foreground max-w-2xl leading-relaxed text-pretty">
-        A Nordex Tech desenvolve sistemas, plataformas e produtos digitais sob medida — do planejamento à entrega — para empresas que querem crescer com tecnologia de verdade.
+        A Nordex Tech desenvolve sistemas, plataformas e produtos digitais sob medida do planejamento à entrega para empresas que querem crescer com tecnologia de verdade.
       </p>
 
       {/* CTAs */}
@@ -58,9 +56,8 @@ export function Hero() {
       </div>
 
       {/* Stats row */}
-      <div className="relative z-10 mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl w-full">
+      <div className="relative z-10 mt-20 flex flex-col sm:flex-row items-center justify-center gap-12 max-w-2xl w-full">
         {[
-          { value: "+50", label: "Projetos entregues" },
           { value: "100%", label: "Foco em resultado" },
           { value: "24/7", label: "Suporte ativo" },
         ].map((stat) => (
