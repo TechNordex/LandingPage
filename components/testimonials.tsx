@@ -6,18 +6,21 @@ const founders = [
     role: "Analista de Desenvolvimento de Sistemas Pleno",
     bio: "Especialista em arquitetura de software e desenvolvimento full-stack, transformando ideias complexas em soluções elegantes e performáticas.",
     initials: "DS",
+    linkedin: "https://www.linkedin.com/in/deyvid-yancey-guedes-silva-490aa31b5/",
   },
   {
     name: "Gustavo Montenegro",
     role: "Analista de Sistemas",
     bio: "Focado em análise de requisitos e modelagem de sistemas, garantindo que cada solução atenda perfeitamente às necessidades do negócio.",
     initials: "GM",
+    linkedin: "https://www.linkedin.com/in/devmontenegro/",
   },
   {
     name: "Adson Vicente",
     role: "Analista de Infraestrutura de TI",
     bio: "Responsável por infraestrutura robusta e escalável, assegurando alta disponibilidade e segurança em todos os nossos projetos.",
     initials: "AV",
+    linkedin: "",
   },
 ]
 
@@ -69,13 +72,17 @@ export function Founders() {
               </p>
 
               {/* Social */}
-              <a
-                href="#"
-                className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors pt-4 border-t border-border w-full justify-center"
-              >
-                <Linkedin size={14} />
-                LinkedIn
-              </a>
+              {f.linkedin && (
+                <a
+                  href={f.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors pt-4 border-t border-border w-full justify-center"
+                >
+                  <Linkedin size={14} />
+                  LinkedIn
+                </a>
+              )}
             </div>
           ))}
         </div>
