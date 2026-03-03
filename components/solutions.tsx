@@ -1,4 +1,4 @@
-import { Globe, Code2, Smartphone, Headphones } from "lucide-react"
+import { Globe, Code2, Smartphone, Headphones, BrainCircuit } from "lucide-react"
 
 const solutions = [
   {
@@ -12,6 +12,12 @@ const solutions = [
     title: "Apps Mobile",
     description:
       "Aplicativos iOS e Android com experiência fluida, integrados ao seu negócio e prontos para o mercado.",
+  },
+  {
+    icon: BrainCircuit,
+    title: "Soluções com IA",
+    description:
+      "Integramos inteligência artificial ao seu negócio com chatbots, automações inteligentes, análise preditiva e muito mais.",
   },
   {
     icon: Code2,

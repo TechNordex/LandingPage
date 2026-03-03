@@ -48,13 +48,13 @@ export function Contact() {
               {
                 icon: Phone,
                 label: "WhatsApp",
-                value: "+55 (85) 99999-0000",
-                href: "https://wa.me/5585999990000",
+                value: "+55 (81) 98488-9683",
+                href: "https://wa.me/5581984889683",
               },
               {
                 icon: MapPin,
                 label: "Localização",
-                value: "Nordeste, Brasil",
+                value: "Moreno, Pernambuco, Brasil",
                 href: "#",
               },
             ].map((item) => {

@@ -10,20 +10,12 @@ const projects = [
     color: "from-primary/20 to-primary/5",
   },
   {
-    tag: "App Mobile",
-    title: "App de Delivery Regional",
+    tag: "Inteligência Artificial",
+    title: "Assistente Virtual com IA",
     description:
-      "Aplicativo de delivery para restaurantes locais, com painel administrativo, rastreamento em tempo real e gateway de pagamento.",
-    tech: ["React Native", "Firebase", "Stripe"],
+      "Chatbot inteligente com processamento de linguagem natural para atendimento automatizado, reduzindo tempo de resposta em 70%.",
+    tech: ["Python", "OpenAI", "LangChain"],
     color: "from-blue-500/20 to-blue-500/5",
-  },
-  {
-    tag: "BI & Dados",
-    title: "Dashboard de Inteligência Comercial",
-    description:
-      "Painel de análise de dados para uma empresa de agronegócio, consolidando informações de múltiplas fontes em tempo real.",
-    tech: ["Python", "Power BI", "AWS"],
-    color: "from-emerald-500/20 to-emerald-500/5",
   },
   {
     tag: "API & Integração",

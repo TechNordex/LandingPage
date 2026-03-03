@@ -28,7 +28,7 @@ export function About() {
           {/* Side tag */}
           <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:-bottom-5 lg:-right-5 bg-card border border-border rounded-xl px-5 py-3 shadow-xl">
             <p className="text-xs font-semibold text-muted-foreground">Sede em</p>
-            <p className="text-sm font-bold text-foreground">Nordeste, Brasil</p>
+            <p className="text-sm font-bold text-foreground">Moreno, PE</p>
           </div>
         </div>
 

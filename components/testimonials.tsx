@@ -1,75 +1,81 @@
-import { Star } from "lucide-react"
+import { Linkedin } from "lucide-react"
 
-const testimonials = [
+const founders = [
   {
-    name: "Carlos Mendonça",
-    role: "CEO, Varejo Norte",
-    content:
-      "A Nordex Tech entregou nosso sistema de gestão no prazo e com uma qualidade que superou nossas expectativas. O suporte pós-entrega é exemplar.",
-    stars: 5,
+    name: "Deyvid Silva",
+    role: "Analista de Desenvolvimento de Sistemas Pleno",
+    bio: "Especialista em arquitetura de software e desenvolvimento full-stack, transformando ideias complexas em soluções elegantes e performáticas.",
+    initials: "DS",
   },
   {
-    name: "Fernanda Lima",
-    role: "Diretora de TI, AgroNordeste",
-    content:
-      "Transformaram nossos dados brutos em dashboards incríveis. Agora tomamos decisões muito mais rápido e com confiança. Parceria de longo prazo.",
-    stars: 5,
+    name: "Gustavo Montenegro",
+    role: "Analista de Sistemas",
+    bio: "Focado em análise de requisitos e modelagem de sistemas, garantindo que cada solução atenda perfeitamente às necessidades do negócio.",
+    initials: "GM",
   },
   {
-    name: "Rafael Sousa",
-    role: "Fundador, FinTech Recife",
-    content:
-      "A integração que desenvolveram para nós eliminou horas de trabalho manual por semana. Time técnico excepcional e comunicação impecável.",
-    stars: 5,
+    name: "Adson Vicente",
+    role: "Analista de Infraestrutura de TI",
+    bio: "Responsável por infraestrutura robusta e escalável, assegurando alta disponibilidade e segurança em todos os nossos projetos.",
+    initials: "AV",
   },
 ]
 
-export function Testimonials() {
+export function Founders() {
   return (
-    <section className="py-24 px-6 bg-card">
+    <section id="equipe" className="py-24 px-6 bg-card">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-16 text-center">
           <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-3">
-            Depoimentos
+            Nosso time
           </p>
           <h2
             className="text-3xl md:text-5xl font-bold text-foreground text-balance"
             style={{ fontFamily: "var(--font-space-grotesk)" }}
           >
-            O que nossos clientes dizem
+            Conheça os fundadores
           </h2>
+          <p className="mt-4 text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            A Nordex Tech foi fundada por profissionais apaixonados por tecnologia e comprometidos em entregar soluções de verdade.
+          </p>
         </div>
 
         {/* Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {testimonials.map((t) => (
+          {founders.map((f) => (
             <div
-              key={t.name}
-              className="relative p-8 rounded-xl border border-border bg-background flex flex-col gap-5"
+              key={f.name}
+              className="group relative p-8 rounded-xl border border-border bg-background flex flex-col items-center text-center gap-5 hover:border-primary/40 transition-all duration-300"
             >
-              {/* Stars */}
-              <div className="flex items-center gap-1">
-                {Array.from({ length: t.stars }).map((_, i) => (
-                  <Star key={i} size={14} className="fill-primary text-primary" />
-                ))}
+              {/* Avatar */}
+              <div className="w-20 h-20 rounded-full bg-primary/15 text-primary flex items-center justify-center text-2xl font-bold border-2 border-primary/30"
+                style={{ fontFamily: "var(--font-space-grotesk)" }}
+              >
+                {f.initials}
               </div>
 
-              {/* Quote */}
+              {/* Info */}
+              <div>
+                <h3 className="text-lg font-bold text-foreground" style={{ fontFamily: "var(--font-space-grotesk)" }}>
+                  {f.name}
+                </h3>
+                <p className="text-sm text-primary font-medium mt-1">{f.role}</p>
+              </div>
+
+              {/* Bio */}
               <p className="text-sm text-muted-foreground leading-relaxed flex-1">
-                "{t.content}"
+                {f.bio}
               </p>
 
-              {/* Author */}
-              <div className="flex items-center gap-3 pt-4 border-t border-border">
-                <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center text-sm font-bold">
-                  {t.name.charAt(0)}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{t.name}</p>
-                  <p className="text-xs text-muted-foreground">{t.role}</p>
-                </div>
-              </div>
+              {/* Social */}
+              <a
+                href="#"
+                className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors pt-4 border-t border-border w-full justify-center"
+              >
+                <Linkedin size={14} />
+                LinkedIn
+              </a>
             </div>
           ))}
         </div>
