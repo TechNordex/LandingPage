@@ -20,7 +20,7 @@ const founders = [
     role: "Analista de Infraestrutura de TI",
     bio: "Responsável por infraestrutura robusta e escalável, assegurando alta disponibilidade e segurança em todos os nossos projetos.",
     initials: "AV",
-    linkedin: "",
+    linkedin: "https://www.linkedin.com/in/adson-vicente-40968b352/",
   },
 ]
 
