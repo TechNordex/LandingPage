@@ -59,8 +59,8 @@ export function Contact() {
               {
                 icon: Mail,
                 label: "E-mail",
-                value: "contato@nordex.tech",
-                href: "mailto:contato@nordex.tech",
+                value: "technordex@gmail.com",
+                href: "mailto:technordex@gmail.com",
               },
               {
                 icon: Phone,
@@ -99,13 +99,19 @@ export function Contact() {
             <div className="border-t border-border pt-8">
               <p className="text-sm text-muted-foreground mb-4">Nos siga nas redes sociais</p>
               <div className="flex gap-3">
-                {["LinkedIn", "Instagram", "GitHub"].map((s) => (
+                {[
+                  { label: "LinkedIn", href: "#" },
+                  { label: "Instagram", href: "https://www.instagram.com/nordex.tech" },
+                  { label: "GitHub", href: "#" },
+                ].map((s) => (
                   <a
-                    key={s}
-                    href="#"
+                    key={s.label}
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="px-4 py-2 rounded-md border border-border text-xs font-medium text-muted-foreground hover:border-primary hover:text-primary transition-colors"
                   >
-                    {s}
+                    {s.label}
                   </a>
                 ))}
               </div>
