@@ -34,11 +34,11 @@ export function Navbar() {
         {/* Logo */}
         <a href="#inicio" className="flex items-center gap-2">
           <Image
-            src="/logo-nordex.jpg"
+            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png"
             alt="Nordex Tech"
-            width={140}
-            height={44}
-            className="h-10 w-auto object-contain"
+            width={160}
+            height={52}
+            className="h-12 w-auto object-contain"
           />
         </a>
 

@@ -15,27 +15,18 @@ export function About() {
         {/* Visual side */}
         <div className="relative">
           {/* Main block */}
-          <div className="relative rounded-2xl overflow-hidden border border-border aspect-square max-w-md mx-auto lg:mx-0">
+          <div className="relative flex items-center justify-center rounded-2xl overflow-hidden border border-border bg-card aspect-square max-w-md mx-auto lg:mx-0 p-10">
             <Image
-              src="/logo-nordex.jpg"
+              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png"
               alt="Nordex Tech — empresa de tecnologia"
-              fill
-              className="object-cover"
+              width={320}
+              height={320}
+              className="object-contain w-full h-full"
             />
-            {/* Overlay */}
-            <div className="absolute inset-0 bg-background/40" />
-          </div>
-
-          {/* Floating badge */}
-          <div className="absolute -bottom-6 -right-4 md:right-8 bg-primary text-primary-foreground rounded-xl px-6 py-4 shadow-2xl">
-            <p className="text-2xl font-bold" style={{ fontFamily: "var(--font-space-grotesk)" }}>
-              +5 anos
-            </p>
-            <p className="text-xs font-medium opacity-80">entregando tecnologia</p>
           </div>
 
           {/* Side tag */}
-          <div className="absolute -top-4 -left-4 md:left-0 bg-card border border-border rounded-xl px-5 py-3 shadow-xl">
+          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:-bottom-5 lg:-right-5 bg-card border border-border rounded-xl px-5 py-3 shadow-xl">
             <p className="text-xs font-semibold text-muted-foreground">Sede em</p>
             <p className="text-sm font-bold text-foreground">Nordeste, Brasil</p>
           </div>

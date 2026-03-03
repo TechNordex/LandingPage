@@ -62,7 +62,6 @@ export function Hero() {
         {[
           { value: "+50", label: "Projetos entregues" },
           { value: "100%", label: "Foco em resultado" },
-          { value: "+5 anos", label: "De experiência" },
           { value: "24/7", label: "Suporte ativo" },
         ].map((stat) => (
           <div key={stat.label} className="flex flex-col items-center text-center gap-1">

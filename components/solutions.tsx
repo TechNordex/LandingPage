@@ -1,4 +1,4 @@
-import { Globe, Code2, Smartphone, BarChart3, ShieldCheck, Headphones } from "lucide-react"
+import { Globe, Code2, Smartphone, Headphones } from "lucide-react"
 
 const solutions = [
   {
@@ -18,18 +18,6 @@ const solutions = [
     title: "APIs & Integrações",
     description:
       "Conectamos sistemas legados e modernos com APIs robustas, automatizando processos e eliminando retrabalho.",
-  },
-  {
-    icon: BarChart3,
-    title: "BI & Análise de Dados",
-    description:
-      "Transformamos dados brutos em dashboards e insights acionáveis para decisões mais inteligentes.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Segurança Digital",
-    description:
-      "Implementamos boas práticas de segurança para proteger os dados da sua empresa e dos seus clientes.",
   },
   {
     icon: Headphones,
