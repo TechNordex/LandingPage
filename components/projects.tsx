@@ -41,12 +41,12 @@ const categories: Category[] = [
     tagColor: "text-primary bg-primary/10 border-primary/20",
     borderColor: "border-primary/50",
     title: "Sistema de Gestão Empresarial",
-    icon: "🗂️",
+    icon: "",
     challenges: [
       {
         label: "Falta de controle de estoque",
         solution:
-          "Desenvolvemos um sistema centralizado com dashboards em tempo real, alertas de ruptura e integração com seus fornecedores — sem planilhas, sem retrabalho.",
+          "Desenvolvemos um sistema centralizado com dashboards em tempo real, alertas de ruptura e integração com seus fornecedores sem planilhas,sem retrabalho.",
       },
       {
         label: "Processos financeiros manuais",
@@ -56,7 +56,7 @@ const categories: Category[] = [
       {
         label: "Dificuldade em gerar relatórios",
         solution:
-          "Painel de BI com filtros avançados, exportação para Excel/PDF e indicadores de performance atualizados em tempo real — decisões baseadas em dados.",
+          "Painel de BI com filtros avançados, exportação para Excel/PDF e indicadores de performance atualizados em tempo real decisões baseadas em dados.",
       },
       {
         label: "Sistemas desconectados",
@@ -70,7 +70,7 @@ const categories: Category[] = [
     tagColor: "text-blue-400 bg-blue-400/10 border-blue-400/20",
     borderColor: "border-blue-400/50",
     title: "Assistente de Atendimento com IA",
-    icon: "🤖",
+    icon: "",
     challenges: [
       {
         label: "Equipe de suporte sobrecarregada",
@@ -80,7 +80,7 @@ const categories: Category[] = [
       {
         label: "Atendimento fora do horário comercial",
         solution:
-          "O Nordy funciona 24/7, respondendo em segundos a qualquer hora do dia ou da noite — sem custo de hora extra, sem clientes esperando.",
+          "O Nordy funciona 24/7, respondendo em segundos a qualquer hora do dia ou da noite sem custo de hora extra,sem clientes esperando.",
       },
       {
         label: "Perda de leads por demora na resposta",
@@ -90,7 +90,7 @@ const categories: Category[] = [
       {
         label: "Alto custo operacional de atendimento",
         solution:
-          "Redução de até 60% no custo por atendimento mantendo alta satisfação — o agente escala sem contratar, treinar ou gerir mais pessoas.",
+          "Redução de até 60% no custo por atendimento mantendo alta satisfação o agente escala sem contratar, treinar ou gerir mais pessoas.",
       },
     ],
   },
@@ -99,12 +99,12 @@ const categories: Category[] = [
     tagColor: "text-orange-400 bg-orange-400/10 border-orange-400/20",
     borderColor: "border-orange-400/50",
     title: "Hub de Pagamentos & Finanças",
-    icon: "💳",
+    icon: "",
     challenges: [
       {
         label: "Cobranças manuais e demoradas",
         solution:
-          "Automatizamos toda a régua de cobrança — PIX, boleto e cartão — com notificações automáticas por WhatsApp e e-mail, sem tocar em planilha.",
+          "Automatizamos toda a régua de cobrança PIX, boleto e cartão com notificações automáticas por WhatsApp e e-mail, sem tocar em planilha.",
       },
       {
         label: "Inadimplência sem controle",
@@ -114,12 +114,12 @@ const categories: Category[] = [
       {
         label: "Gateways de pagamento desconectados",
         solution:
-          "Integração com Stripe, PagSeguro, Asaas e outros — unificamos tudo em uma API única para que o seu financeiro veja tudo em um só lugar.",
+          "Integração com Stripe, PagSeguro, Asaas e outros unificamos tudo em uma API única para que o seu financeiro veja tudo em um só lugar.",
       },
       {
         label: "Falta de visibilidade financeira",
         solution:
-          "Dashboard financeiro em tempo real com fluxo de caixa, projeções e alertas — você sabe exatamente onde está o dinheiro da empresa, sempre.",
+          "Dashboard financeiro em tempo real com fluxo de caixa, projeções e alertas você sabe exatamente onde está o dinheiro da empresa, sempre.",
       },
     ],
   },
@@ -174,8 +174,8 @@ function DiagnosticCard({ cat, delay }: { cat: Category; delay: number }) {
                   key={ch.label}
                   onClick={() => handleSelect(idx)}
                   className={`w-full text-left text-sm px-4 py-2.5 rounded-lg border transition-all duration-200 flex items-center justify-between gap-2 ${isActive
-                      ? "border-primary/50 bg-primary/10 text-foreground"
-                      : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-primary/5"
+                    ? "border-primary/50 bg-primary/10 text-foreground"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-primary/5"
                     }`}
                 >
                   <span>{ch.label}</span>

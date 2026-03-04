@@ -57,7 +57,7 @@ export function About() {
               A <span className="text-foreground font-semibold">Nordex Tech</span> nasceu com um propósito claro: levar soluções tecnológicas de alta qualidade para empresas que querem evoluir. Somos uma empresa de tecnologia com raízes no Nordeste do Brasil e visão voltada para o futuro.
             </p>
             <p className="text-muted-foreground leading-relaxed mb-8">
-              Combinamos criatividade local com as melhores tecnologias do mercado para construir produtos digitais que realmente funcionam — e fazem diferença no dia a dia do seu negócio.
+              Combinamos criatividade local com as melhores tecnologias do mercado para construir produtos digitais que realmente funcionam e fazem diferença no dia a dia do seu negócio.
             </p>
 
             {/* Values list — staggered */}

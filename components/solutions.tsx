@@ -40,7 +40,7 @@ const solutions = [
     icon: Headphones,
     title: "Suporte & Evolução",
     description:
-      "Acompanhamos sua solução após o lançamento — manutenção, evolução contínua e suporte especializado.",
+      "Acompanhamos sua solução após o lançamento manutenção, evolução contínua e suporte especializado.",
   },
 ]
 
