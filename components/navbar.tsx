@@ -1,3 +1,10 @@
+/**
+ * Navbar
+ * ------
+ * - Fixed header with blur on scroll
+ * - Scroll progress bar (golden line at the very top)
+ * - Responsive: hamburger menu for mobile with slide-down animation
+ */
 "use client"
 
 import { useState, useEffect } from "react"
@@ -15,10 +22,18 @@ const navLinks = [
 export function Navbar() {
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [scrollProgress, setScrollProgress] = useState(0)
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20)
-    window.addEventListener("scroll", handleScroll)
+    const handleScroll = () => {
+      const scrollTop = window.scrollY
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight
+
+      setScrolled(scrollTop > 20)
+      setScrollProgress(docHeight > 0 ? scrollTop / docHeight : 0)
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true })
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
@@ -29,6 +44,13 @@ export function Navbar() {
           : "bg-transparent"
         }`}
     >
+      {/* ── Scroll progress bar (golden line) ── */}
+      <div
+        className="scroll-progress-bar"
+        style={{ "--scroll-progress": scrollProgress } as React.CSSProperties}
+        aria-hidden="true"
+      />
+
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo */}
         <a href="#inicio" className="flex items-center gap-2">
@@ -47,7 +69,7 @@ export function Navbar() {
             <a
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+              className="btn-slide text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 pb-px"
             >
               {link.label}
             </a>
@@ -64,22 +86,25 @@ export function Navbar() {
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden text-foreground"
+          className="md:hidden text-foreground transition-transform active:scale-90"
           onClick={() => setOpen(!open)}
-          aria-label="Menu"
+          aria-label={open ? "Fechar menu" : "Abrir menu"}
         >
           {open ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
-      {/* Mobile menu */}
-      {open && (
-        <div className="md:hidden bg-background border-t border-border px-6 py-6 flex flex-col gap-5">
+      {/* Mobile menu — slide-down */}
+      <div
+        className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${open ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+          }`}
+      >
+        <div className="bg-background border-t border-border px-6 py-6 flex flex-col gap-5">
           {navLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="text-base font-medium text-foreground"
+              className="text-base font-medium text-foreground hover:text-primary transition-colors"
               onClick={() => setOpen(false)}
             >
               {link.label}
@@ -93,7 +118,7 @@ export function Navbar() {
             Fale Conosco
           </a>
         </div>
-      )}
+      </div>
     </header>
   )
 }

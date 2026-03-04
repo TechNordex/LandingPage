@@ -3,21 +3,25 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================
+   NORDEX TECH — Design Tokens
+   ============================================================ */
 :root {
-  /* Nordex Tech — dark-first brand palette */
-  --background: oklch(0.12 0 0);          /* #1a1a1a quase preto */
-  --foreground: oklch(0.97 0 0);          /* branco suave */
-  --card: oklch(0.17 0 0);               /* cinza escuro para cards */
+  /* Brand palette (dark-first) */
+  --background: oklch(0.12 0 0);
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.17 0 0);
   --card-foreground: oklch(0.97 0 0);
   --popover: oklch(0.17 0 0);
   --popover-foreground: oklch(0.97 0 0);
-  --primary: oklch(0.78 0.18 80);        /* dourado #F5A800 */
+  --primary: oklch(0.78 0.18 80);
+  /* dourado #F5A800 */
   --primary-foreground: oklch(0.12 0 0);
-  --secondary: oklch(0.22 0 0);          /* cinza médio escuro */
+  --secondary: oklch(0.22 0 0);
   --secondary-foreground: oklch(0.97 0 0);
   --muted: oklch(0.22 0 0);
   --muted-foreground: oklch(0.60 0 0);
-  --accent: oklch(0.78 0.18 80);         /* dourado acento */
+  --accent: oklch(0.78 0.18 80);
   --accent-foreground: oklch(0.12 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.97 0 0);
@@ -38,11 +42,16 @@
   --sidebar-accent-foreground: oklch(0.97 0 0);
   --sidebar-border: oklch(0.26 0 0);
   --sidebar-ring: oklch(0.78 0.18 80);
-  /* Custom brand tokens */
   --gold: oklch(0.78 0.18 80);
   --gold-light: oklch(0.85 0.16 85);
   --surface: oklch(0.17 0 0);
   --surface-hover: oklch(0.22 0 0);
+
+  /* Animation timing — edit these to tune globally */
+  --anim-duration: 0.65s;
+  --anim-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --anim-offset: 28px;
+  /* distance elements travel on enter */
 }
 
 @theme inline {
@@ -91,7 +100,234 @@
   * {
     @apply border-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ============================================================
+   ANIMATION KEYFRAMES
+   ============================================================ */
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(var(--anim-offset));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideLeft {
+  from {
+    opacity: 0;
+    transform: translateX(var(--anim-offset));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--anim-offset) * -1));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes lineGrow {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes scrollProgressGrow {
+  from {
+    width: 0%;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+
+/* Typewriter cursor blink — used by the Hero heading */
+@keyframes cursorBlink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+   SCROLL-TRIGGERED ANIMATION SYSTEM
+   Used by AnimateOnScroll component and useAnimateOnScroll hook.
+   Elements start hidden; "is-visible" class triggers the animation.
+   ============================================================ */
+
+.animate-on-scroll {
+  opacity: 0;
+  /* animation-fill-mode keeps the final state after animation ends */
+  animation-fill-mode: both;
+  animation-duration: var(--anim-duration);
+  animation-timing-function: var(--anim-ease);
+}
+
+.animate-on-scroll.is-visible.anim-fade-up {
+  animation-name: fadeUp;
+}
+
+.animate-on-scroll.is-visible.anim-fade-in {
+  animation-name: fadeIn;
+}
+
+.animate-on-scroll.is-visible.anim-slide-left {
+  animation-name: slideLeft;
+}
+
+.animate-on-scroll.is-visible.anim-slide-right {
+  animation-name: slideRight;
+}
+
+/* Stagger helpers — add .stagger-N to children inside a reveal container */
+.animate-on-scroll.stagger-1 {
+  animation-delay: 80ms;
+}
+
+.animate-on-scroll.stagger-2 {
+  animation-delay: 160ms;
+}
+
+.animate-on-scroll.stagger-3 {
+  animation-delay: 240ms;
+}
+
+.animate-on-scroll.stagger-4 {
+  animation-delay: 320ms;
+}
+
+.animate-on-scroll.stagger-5 {
+  animation-delay: 400ms;
+}
+
+/* ============================================================
+   SCROLL PROGRESS BAR
+   A thin golden line at the very top of the page.
+   Driven by JS in Navbar via CSS variable --scroll-progress.
+   ============================================================ */
+
+.scroll-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: calc(var(--scroll-progress, 0) * 100%);
+  background: linear-gradient(90deg, var(--gold), var(--gold-light));
+  z-index: 9999;
+  pointer-events: none;
+  transition: width 0.1s linear;
+}
+
+/* ============================================================
+   HOVER CARD LIFT
+   Apply .card-hover to any card element for the elevation effect.
+   ============================================================ */
+
+.card-hover {
+  transition:
+    transform 0.3s var(--anim-ease),
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 40px -12px oklch(0.78 0.18 80 / 0.18);
+}
+
+/* ============================================================
+   BUTTON UNDERLINE SLIDE EFFECT
+   Apply .btn-slide to <a> or <button> for a sliding underline.
+   ============================================================ */
+
+.btn-slide {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-slide::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--gold);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.35s var(--anim-ease);
+}
+
+.btn-slide:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* ============================================================
+   ACCESSIBILITY — respect user motion preferences
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-on-scroll {
+    opacity: 1 !important;
+    animation: none !important;
+  }
+
+  .card-hover,
+  .card-hover:hover {
+    transform: none;
+    transition: border-color 0.2s ease;
+  }
+
+  .btn-slide::after {
+    transition: none;
+  }
+
+  html {
+    scroll-behavior: auto;
   }
 }

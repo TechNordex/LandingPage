@@ -1,4 +1,13 @@
+/**
+ * Projects
+ * --------
+ * - Section header fades up on scroll
+ * - Project cards reveal with staggered fade-up
+ * - card-hover class for lift + golden glow effect (globals.css)
+ * - Decorative golden line grows left-to-right on card hover (CSS ::before)
+ */
 import { ExternalLink } from "lucide-react"
+import { AnimateOnScroll } from "@/components/animate-on-scroll"
 
 const projects = [
   {
@@ -27,69 +36,80 @@ const projects = [
   },
 ]
 
+/** Stagger delays per card (ms) */
+const STAGGER = [0, 120, 240]
+
 export function Projects() {
   return (
     <section id="projetos" className="py-24 px-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-16 text-center">
-          <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-3">
-            Nossos projetos
-          </p>
-          <h2
-            className="text-3xl md:text-5xl font-bold text-foreground text-balance"
-            style={{ fontFamily: "var(--font-space-grotesk)" }}
-          >
-            Resultados que falam por si
-          </h2>
-          <p className="mt-4 text-muted-foreground max-w-xl mx-auto leading-relaxed">
-            Cada projeto é uma parceria. Veja alguns dos trabalhos que desenvolvemos para clientes que acreditaram na tecnologia como diferencial.
-          </p>
-        </div>
-
-        {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {projects.map((project) => (
-            <div
-              key={project.title}
-              className="group relative p-8 rounded-xl border border-border bg-card hover:border-primary/30 transition-all duration-300 overflow-hidden"
+        <AnimateOnScroll animation="fade-up">
+          <div className="mb-16 text-center">
+            <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-3">
+              Nossos projetos
+            </p>
+            <h2
+              className="text-3xl md:text-5xl font-bold text-foreground text-balance"
+              style={{ fontFamily: "var(--font-space-grotesk)" }}
             >
-              {/* BG tint */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${project.color} opacity-50 pointer-events-none`} />
+              Resultados que falam por si
+            </h2>
+            <p className="mt-4 text-muted-foreground max-w-xl mx-auto leading-relaxed">
+              Cada projeto é uma parceria. Veja alguns dos trabalhos que desenvolvemos para clientes que acreditaram na tecnologia como diferencial.
+            </p>
+          </div>
+        </AnimateOnScroll>
 
-              <div className="relative z-10">
-                {/* Tag */}
-                <span className="inline-block text-xs font-semibold text-primary bg-primary/10 border border-primary/20 rounded-full px-3 py-1 mb-5">
-                  {project.tag}
-                </span>
+        {/* Cards grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {projects.map((project, i) => (
+            <AnimateOnScroll key={project.title} animation="fade-up" delay={STAGGER[i] ?? 0}>
+              <div className="card-hover group relative p-8 rounded-xl border border-border bg-card hover:border-primary/30 overflow-hidden h-full">
+                {/* BG tint */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${project.color} opacity-50 pointer-events-none`} />
 
-                <h3
-                  className="text-xl font-bold text-foreground mb-3"
-                  style={{ fontFamily: "var(--font-space-grotesk)" }}
-                >
-                  {project.title}
-                </h3>
-                <p className="text-muted-foreground text-sm leading-relaxed mb-6">
-                  {project.description}
-                </p>
+                {/* Golden line — grows on hover */}
+                <div className="absolute top-0 left-0 h-[2px] w-0 group-hover:w-full bg-primary/60 transition-all duration-500 ease-out" />
 
-                {/* Tech stack */}
-                <div className="flex flex-wrap gap-2 mb-6">
-                  {project.tech.map((t) => (
-                    <span
-                      key={t}
-                      className="text-xs font-medium text-muted-foreground border border-border rounded-md px-2.5 py-1"
-                    >
-                      {t}
-                    </span>
-                  ))}
+                <div className="relative z-10">
+                  {/* Tag */}
+                  <span className="inline-block text-xs font-semibold text-primary bg-primary/10 border border-primary/20 rounded-full px-3 py-1 mb-5">
+                    {project.tag}
+                  </span>
+
+                  <h3
+                    className="text-xl font-bold text-foreground mb-3"
+                    style={{ fontFamily: "var(--font-space-grotesk)" }}
+                  >
+                    {project.title}
+                  </h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+                    {project.description}
+                  </p>
+
+                  {/* Tech stack */}
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {project.tech.map((t) => (
+                      <span
+                        key={t}
+                        className="text-xs font-medium text-muted-foreground border border-border rounded-md px-2.5 py-1"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+
+                  <button className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline underline-offset-4 transition-all group/btn">
+                    Ver detalhes
+                    <ExternalLink
+                      size={14}
+                      className="transition-transform duration-200 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5"
+                    />
+                  </button>
                 </div>
-
-                <button className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline underline-offset-4 transition-all">
-                  Ver detalhes <ExternalLink size={14} />
-                </button>
               </div>
-            </div>
+            </AnimateOnScroll>
           ))}
         </div>
       </div>
