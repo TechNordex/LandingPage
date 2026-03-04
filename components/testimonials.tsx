@@ -2,23 +2,23 @@ import { Linkedin } from "lucide-react"
 
 const founders = [
   {
-    name: "Deyvid Silva",
-    role: "Analista de Desenvolvimento de Sistemas Pleno",
-    bio: "Especialista em arquitetura de software e desenvolvimento full-stack, transformando ideias complexas em soluções elegantes e performáticas.",
-    initials: "DS",
-    linkedin: "https://www.linkedin.com/in/deyvid-yancey-guedes-silva-490aa31b5/",
-  },
-  {
     name: "Gustavo Montenegro",
-    role: "Analista de Sistemas",
-    bio: "Focado em análise de requisitos e modelagem de sistemas, garantindo que cada solução atenda perfeitamente às necessidades do negócio.",
+    role: "Co-Founder & CTO",
+    bio: "Arquiteto de Software e desenvolvedor Fullcycle. Responsável pelo ciclo de vida completo das aplicações e na tradução de necessidades de negócio em soluções técnicas.",
     initials: "GM",
     linkedin: "https://www.linkedin.com/in/devmontenegro/",
   },
   {
+    name: "Deyvid Silva",
+    role: "Co-Founder & CTO",
+    bio: "Especialista em Inteligência Artificial e automação de fluxos. Responsável pela persistência, modelagem e integridade de dados das aplicações.",
+    initials: "DS",
+    linkedin: "https://www.linkedin.com/in/deyvid-silva-490aa31b5/",
+  },
+  {
     name: "Adson Vicente",
-    role: "Analista de Infraestrutura de TI",
-    bio: "Responsável por infraestrutura robusta e escalável, assegurando alta disponibilidade e segurança em todos os nossos projetos.",
+    role: "Co-Founder & CTO",
+    bio: "Gestor de Operações, Cloud e orquestração de serviços de deploy. Garante a alta disponibilidade, performance de rede e segurança da infraestrutura.",
     initials: "AV",
     linkedin: "https://www.linkedin.com/in/adson-vicente-40968b352/",
   },

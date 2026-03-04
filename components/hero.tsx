@@ -10,6 +10,7 @@
 
 import { ArrowRight, ChevronDown } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { MagneticWrapper } from "@/components/magnetic-wrapper"
 
 /**
  * useTypewriter
@@ -136,22 +137,26 @@ export function Hero() {
           className="mt-10 flex flex-col sm:flex-row items-center gap-4 animate-on-scroll anim-fade-up is-visible"
           style={{ animationDelay: "400ms" }}
         >
-          <a
-            href="#solucoes"
-            className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-md bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
-          >
-            Ver Soluções
-            <ArrowRight
-              size={18}
-              className="transition-transform duration-300 group-hover:translate-x-1"
-            />
-          </a>
-          <a
-            href="#sobre"
-            className="btn-slide inline-flex items-center gap-2 px-7 py-3.5 rounded-md border border-border text-foreground font-semibold text-base hover:bg-surface-hover transition-colors"
-          >
-            Conheça a empresa
-          </a>
+          <MagneticWrapper>
+            <a
+              href="#solucoes"
+              className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-md bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
+            >
+              Ver Soluções
+              <ArrowRight
+                size={18}
+                className="transition-transform duration-300 group-hover:translate-x-1"
+              />
+            </a>
+          </MagneticWrapper>
+          <MagneticWrapper>
+            <a
+              href="#sobre"
+              className="btn-slide inline-flex items-center gap-2 px-7 py-3.5 rounded-md border border-border text-foreground font-semibold text-base hover:bg-surface-hover transition-colors"
+            >
+              Nos conheça
+            </a>
+          </MagneticWrapper>
         </div>
 
         {/* Stats row — delay 520ms */}
@@ -173,6 +178,64 @@ export function Hero() {
               <span className="text-sm text-muted-foreground">{stat.label}</span>
             </div>
           ))}
+        </div>
+
+        {/* Client Logos Ribbon — delay 600ms */}
+        <div
+          className="mt-16 w-full max-w-4xl border-t border-border/50 pt-8 animate-on-scroll anim-fade-up is-visible"
+          style={{ animationDelay: "600ms" }}
+        >
+          <p className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-8">
+            Empresas que confiam na nossa tecnologia
+          </p>
+
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12 w-full">
+            {/* Vinum Comunicação */}
+            <div className="group relative w-full md:w-auto flex flex-col items-center">
+              <a
+                href="https://vinumcomunicacao.com.br/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative z-10 flex items-center justify-center h-24 px-8 bg-surface/50 border border-border/50 rounded-xl hover:bg-surface hover:border-primary/30 transition-all duration-300 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 hover:scale-[1.02]"
+              >
+                <img src="/logos/logo-vinum.png" alt="Vinum Comunicação" className="h-[65px] md:h-[80px] object-contain drop-shadow-sm" />
+              </a>
+
+              {/* Tooltip / Balão de depoimento */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-[320px] md:w-[380px] opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-50">
+                <div className="relative bg-card border border-border rounded-xl p-5 shadow-xl">
+                  {/* Seta para baixo */}
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-card border-b border-r border-border rotate-45" />
+                  <p className="relative text-sm text-muted-foreground leading-relaxed italic text-balance text-center">
+                    "Ótima experiência com a Nordex Tech! O sistema da nossa landing page funciona perfeitamente e superou nossas expectativas. A equipe se mostrou sempre disponível para melhorias e muito eficaz. Um serviço de extrema competência e profissionalismo."
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* BiBiscuit ALoja */}
+            <div className="group relative w-full md:w-auto flex flex-col items-center">
+              <a
+                href="https://bibiscuitaloja.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative z-10 flex items-center justify-center h-24 px-8 bg-surface/50 border border-border/50 rounded-xl hover:bg-surface hover:border-primary/30 transition-all duration-300 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 hover:scale-[1.02]"
+              >
+                <img src="/logos/bibiscuit-logo.avif" alt="BiBiscuit ALoja" className="h-[70px] md:h-[90px] object-contain drop-shadow-sm" />
+              </a>
+
+              {/* Tooltip / Balão de depoimento */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-[320px] md:w-[380px] opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-50">
+                <div className="relative bg-card border border-border rounded-xl p-5 shadow-xl">
+                  {/* Seta para baixo */}
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-card border-b border-r border-border rotate-45" />
+                  <p className="relative text-sm text-muted-foreground leading-relaxed italic text-balance text-center">
+                    "Ótimo sistema! A Nordex Tech está sempre disponível para realizar alterações. Gostei muito pois compreenderam minhas necessidades e funciona perfeitamente de forma muito intuitiva, permitindo o uso sem dificuldades."
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

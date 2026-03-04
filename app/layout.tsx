@@ -13,7 +13,7 @@ const spaceGrotesk = Space_Grotesk({
 })
 
 export const metadata: Metadata = {
-  title: 'Nordex Tech — Soluções Tecnológicas',
+  title: 'Nordex Tech Soluções Tecnológicas',
   description:
     'A Nordex Tech desenvolve soluções tecnológicas inovadoras para impulsionar negócios do Nordeste e de todo o Brasil.',
   generator: 'v0.app',

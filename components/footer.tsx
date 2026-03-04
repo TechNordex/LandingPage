@@ -21,7 +21,7 @@ export function Footer() {
               className="h-10 w-auto object-contain mb-4"
             />
             <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
-              Soluções tecnológicas inovadoras desenvolvidas no Nordeste do Brasil — para empresas que querem crescer de verdade.
+              Soluções tecnológicas inovadoras desenvolvidas no Nordeste do Brasil — para empresas e pessoasque querem crescer de verdade.
             </p>
           </div>
 

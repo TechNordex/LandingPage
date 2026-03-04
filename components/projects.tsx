@@ -13,25 +13,22 @@ const projects = [
   {
     tag: "Plataforma Web",
     title: "Sistema de Gestão Empresarial",
-    description:
-      "Plataforma completa de ERP desenvolvida para uma rede varejista nordestina, com módulos de estoque, financeiro e vendas.",
-    tech: ["Next.js", "PostgreSQL", "Node.js"],
+    problem: "Falta de controle de estoque centralizado consumia horas de trabalho sem necessidade.",
+    result: "Gestão precisa de estoque e integração com plataformas externas, facilitando o dia a dia.",
     color: "from-primary/20 to-primary/5",
   },
   {
     tag: "Inteligência Artificial",
-    title: "Assistente Virtual com IA",
-    description:
-      "Chatbot inteligente com processamento de linguagem natural para atendimento automatizado, reduzindo tempo de resposta em 70%.",
-    tech: ["Python", "OpenAI", "LangChain"],
+    title: "Assistente de Atendimento",
+    problem: "Time de suporte sobrecarregado, gerando clientes insatisfeitos com a demora.",
+    result: "Redução no tempo de resposta com resoluções instantâneas 24/7.",
     color: "from-blue-500/20 to-blue-500/5",
   },
   {
     tag: "API & Integração",
-    title: "Hub de Integrações Financeiras",
-    description:
-      "Camada de integração entre sistemas bancários, ERPs e e-commerce para uma fintech em expansão no Nordeste.",
-    tech: ["Node.js", "REST API", "Docker"],
+    title: "Hub de Pagamentos (Fintech)",
+    problem: "Cobranças manuais e interação manual com pagamentos pelo financeiro.",
+    result: "Cobranças realizadas automaticamente via API e integração com gateways de pagamento.",
     color: "from-orange-500/20 to-orange-500/5",
   },
 ]
@@ -84,29 +81,20 @@ export function Projects() {
                   >
                     {project.title}
                   </h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed mb-6">
-                    {project.description}
-                  </p>
-
-                  {/* Tech stack */}
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {project.tech.map((t) => (
-                      <span
-                        key={t}
-                        className="text-xs font-medium text-muted-foreground border border-border rounded-md px-2.5 py-1"
-                      >
-                        {t}
-                      </span>
-                    ))}
+                  <div className="mb-6 space-y-3">
+                    <div className="border-l-2 border-red-500/30 pl-3">
+                      <p className="text-xs font-semibold text-red-500/80 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500/80"></span>Problema</p>
+                      <p className="text-muted-foreground text-sm leading-relaxed">
+                        {project.problem}
+                      </p>
+                    </div>
+                    <div className="border-l-2 border-primary/50 pl-3">
+                      <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-primary/80"></span>Resultado alcançado</p>
+                      <p className="text-foreground text-sm font-medium leading-relaxed">
+                        {project.result}
+                      </p>
+                    </div>
                   </div>
-
-                  <button className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline underline-offset-4 transition-all group/btn">
-                    Ver detalhes
-                    <ExternalLink
-                      size={14}
-                      className="transition-transform duration-200 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5"
-                    />
-                  </button>
                 </div>
               </div>
             </AnimateOnScroll>
