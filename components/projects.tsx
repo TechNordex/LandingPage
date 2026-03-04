@@ -21,7 +21,7 @@ const projects = [
     tag: "Inteligência Artificial",
     title: "Assistente de Atendimento",
     problem: "Time de suporte sobrecarregado, gerando clientes insatisfeitos com a demora.",
-    result: "Redução no tempo de resposta com resoluções instantâneas 24/7.",
+    result: "Redução no tempo de resposta com resoluções instantâneas com trabalhando 24/7 com nosso agente de IA especializado em suporte humanizado.",
     color: "from-blue-500/20 to-blue-500/5",
   },
   {
