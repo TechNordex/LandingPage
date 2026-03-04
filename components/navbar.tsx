@@ -24,11 +24,10 @@ export function Navbar() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
           ? "bg-background/95 backdrop-blur-md border-b border-border"
           : "bg-transparent"
-      }`}
+        }`}
     >
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo */}
@@ -36,9 +35,9 @@ export function Navbar() {
           <Image
             src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png"
             alt="Nordex Tech"
-            width={160}
-            height={52}
-            className="h-12 w-auto object-contain"
+            width={180}
+            height={60}
+            className="h-14 w-auto object-contain"
           />
         </a>
 

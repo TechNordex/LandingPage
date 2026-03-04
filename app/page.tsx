@@ -7,6 +7,7 @@ import { Founders } from "@/components/testimonials"
 import { CtaBanner } from "@/components/cta-banner"
 import { Contact } from "@/components/contact"
 import { Footer } from "@/components/footer"
+import { ChatWidget } from "@/components/chat-widget"
 
 export default function Home() {
   return (
@@ -20,6 +21,7 @@ export default function Home() {
       <CtaBanner />
       <Contact />
       <Footer />
+      <ChatWidget />
     </main>
   )
 }
