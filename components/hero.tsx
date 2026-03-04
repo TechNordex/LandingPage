@@ -186,7 +186,7 @@ export function Hero() {
           style={{ animationDelay: "600ms" }}
         >
           <p className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-8">
-            Empresas que confiam na nossa tecnologia
+            Empresas que confiam em nosso trabalho
           </p>
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12 w-full">
