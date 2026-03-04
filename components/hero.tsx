@@ -61,7 +61,7 @@ export function Hero() {
   return (
     <section
       id="inicio"
-      className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-24 pb-16 overflow-hidden"
+      className="relative min-h-screen flex flex-col items-center px-6 pt-32 pb-12 overflow-hidden"
     >
       {/* Background grid */}
       <div
@@ -79,104 +79,107 @@ export function Hero() {
         style={{ background: "radial-gradient(circle, oklch(0.78 0.18 80) 0%, transparent 70%)" }}
       />
 
-      {/* Badge — delay 0 */}
-      <div
-        className="relative z-10 mb-6 animate-on-scroll anim-fade-up is-visible"
-        style={{ animationDelay: "0ms" }}
-      >
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold tracking-widest uppercase">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-          Tecnologia feita no Nordeste para o Brasil
+      {/* Main Content Wrapper (centered vertically) */}
+      <div className="flex flex-col items-center justify-center flex-1 w-full relative z-10">
+        {/* Badge — delay 0 */}
+        <div
+          className="mb-6 animate-on-scroll anim-fade-up is-visible"
+          style={{ animationDelay: "0ms" }}
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold tracking-widest uppercase">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            Tecnologia feita no Nordeste para o Brasil
+          </div>
+        </div>
+
+        {/* Heading — delay 150ms */}
+        <h1
+          className="text-center text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-balance max-w-5xl animate-on-scroll anim-fade-up is-visible"
+          style={{ fontFamily: "var(--font-space-grotesk)", animationDelay: "150ms" }}
+        >
+          Soluções digitais que{" "}
+          {/*
+            Typewriter: same font as the heading throughout.
+            The blinking golden cursor is the only "tech" signal needed.
+          */}
+          <span className="text-primary whitespace-nowrap">
+            {typed}
+            {/* Cursor — blinks while typing, disappears when done */}
+            <span
+              aria-hidden="true"
+              className="inline-block w-[3px] h-[0.85em] bg-primary align-middle ml-[2px] rounded-sm"
+              style={{
+                /* Stop animation when done so it releases opacity control */
+                animationName: isDone ? "none" : "cursorBlink",
+                animationDuration: "0.8s",
+                animationTimingFunction: "step-end",
+                animationIterationCount: "infinite",
+                opacity: isDone ? 0 : 1,
+                transition: "opacity 0.5s ease",
+              }}
+            />
+          </span>{" "}
+          o seu negócio
+        </h1>
+
+        {/* Paragraph — delay 280ms */}
+        <p
+          className="mt-6 text-center text-lg md:text-xl text-muted-foreground max-w-2xl leading-relaxed text-pretty animate-on-scroll anim-fade-up is-visible"
+          style={{ animationDelay: "280ms" }}
+        >
+          A Nordex Tech desenvolve sistemas, plataformas e produtos digitais sob medida
+          do planejamento à entrega para empresas que querem crescer com tecnologia de verdade.
+        </p>
+
+        {/* CTAs — delay 400ms */}
+        <div
+          className="mt-10 flex flex-col sm:flex-row items-center gap-4 animate-on-scroll anim-fade-up is-visible"
+          style={{ animationDelay: "400ms" }}
+        >
+          <a
+            href="#solucoes"
+            className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-md bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
+          >
+            Ver Soluções
+            <ArrowRight
+              size={18}
+              className="transition-transform duration-300 group-hover:translate-x-1"
+            />
+          </a>
+          <a
+            href="#sobre"
+            className="btn-slide inline-flex items-center gap-2 px-7 py-3.5 rounded-md border border-border text-foreground font-semibold text-base hover:bg-surface-hover transition-colors"
+          >
+            Conheça a empresa
+          </a>
+        </div>
+
+        {/* Stats row — delay 520ms */}
+        <div
+          className="mt-20 flex flex-col sm:flex-row items-center justify-center gap-12 max-w-2xl w-full animate-on-scroll anim-fade-up is-visible"
+          style={{ animationDelay: "520ms" }}
+        >
+          {[
+            { value: "100%", label: "Foco em resultado" },
+            { value: "24/7", label: "Suporte ativo" },
+          ].map((stat) => (
+            <div key={stat.label} className="flex flex-col items-center text-center gap-1">
+              <span
+                className="text-3xl md:text-4xl font-bold text-primary"
+                style={{ fontFamily: "var(--font-space-grotesk)" }}
+              >
+                {stat.value}
+              </span>
+              <span className="text-sm text-muted-foreground">{stat.label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Heading — delay 150ms */}
-      <h1
-        className="relative z-10 text-center text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-balance max-w-5xl animate-on-scroll anim-fade-up is-visible"
-        style={{ fontFamily: "var(--font-space-grotesk)", animationDelay: "150ms" }}
-      >
-        Soluções digitais que{" "}
-        {/*
-          Typewriter: same font as the heading throughout.
-          The blinking golden cursor is the only "tech" signal needed.
-        */}
-        <span className="text-primary whitespace-nowrap">
-          {typed}
-          {/* Cursor — blinks while typing, disappears when done */}
-          <span
-            aria-hidden="true"
-            className="inline-block w-[3px] h-[0.85em] bg-primary align-middle ml-[2px] rounded-sm"
-            style={{
-              /* Stop animation when done so it releases opacity control */
-              animationName: isDone ? "none" : "cursorBlink",
-              animationDuration: "0.8s",
-              animationTimingFunction: "step-end",
-              animationIterationCount: "infinite",
-              opacity: isDone ? 0 : 1,
-              transition: "opacity 0.5s ease",
-            }}
-          />
-        </span>{" "}
-        o seu negócio
-      </h1>
-
-      {/* Paragraph — delay 280ms */}
-      <p
-        className="relative z-10 mt-6 text-center text-lg md:text-xl text-muted-foreground max-w-2xl leading-relaxed text-pretty animate-on-scroll anim-fade-up is-visible"
-        style={{ animationDelay: "280ms" }}
-      >
-        A Nordex Tech desenvolve sistemas, plataformas e produtos digitais sob medida
-        do planejamento à entrega para empresas que querem crescer com tecnologia de verdade.
-      </p>
-
-      {/* CTAs — delay 400ms */}
-      <div
-        className="relative z-10 mt-10 flex flex-col sm:flex-row items-center gap-4 animate-on-scroll anim-fade-up is-visible"
-        style={{ animationDelay: "400ms" }}
-      >
-        <a
-          href="#solucoes"
-          className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-md bg-primary text-primary-foreground font-semibold text-base hover:opacity-90 transition-opacity"
-        >
-          Ver Soluções
-          <ArrowRight
-            size={18}
-            className="transition-transform duration-300 group-hover:translate-x-1"
-          />
-        </a>
-        <a
-          href="#sobre"
-          className="btn-slide inline-flex items-center gap-2 px-7 py-3.5 rounded-md border border-border text-foreground font-semibold text-base hover:bg-surface-hover transition-colors"
-        >
-          Conheça a empresa
-        </a>
-      </div>
-
-      {/* Stats row — delay 520ms */}
-      <div
-        className="relative z-10 mt-20 flex flex-col sm:flex-row items-center justify-center gap-12 max-w-2xl w-full animate-on-scroll anim-fade-up is-visible"
-        style={{ animationDelay: "520ms" }}
-      >
-        {[
-          { value: "100%", label: "Foco em resultado" },
-          { value: "24/7", label: "Suporte ativo" },
-        ].map((stat) => (
-          <div key={stat.label} className="flex flex-col items-center text-center gap-1">
-            <span
-              className="text-3xl md:text-4xl font-bold text-primary"
-              style={{ fontFamily: "var(--font-space-grotesk)" }}
-            >
-              {stat.value}
-            </span>
-            <span className="text-sm text-muted-foreground">{stat.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Scroll indicator — hidden on mobile to avoid overlapping stats */}
+      {/* Scroll indicator — natural flow instead of absolute positioning */}
       <a
         href="#solucoes"
-        className="hidden sm:flex absolute bottom-8 left-1/2 -translate-x-1/2 flex-col items-center gap-1 text-muted-foreground hover:text-primary transition-colors animate-on-scroll anim-fade-in is-visible"
+        className="mt-16 flex flex-col items-center gap-1 text-muted-foreground hover:text-primary transition-colors animate-on-scroll anim-fade-in is-visible relative z-10"
         style={{ animationDelay: "700ms" }}
         aria-label="Rolar para baixo"
       >
