@@ -24,6 +24,12 @@ export function ChatWidget() {
         if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [messages, open])
 
+    useEffect(() => {
+        const handleOpenChat = () => setOpen(true)
+        window.addEventListener("open-nordy-chat", handleOpenChat)
+        return () => window.removeEventListener("open-nordy-chat", handleOpenChat)
+    }, [])
+
     async function handleSend() {
         const text = input.trim()
         if (!text || loading) return

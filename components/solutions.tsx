@@ -1,3 +1,4 @@
+"use client"
 /**
  * Solutions
  * ---------
@@ -26,7 +27,8 @@ const solutions = [
     icon: BrainCircuit,
     title: "Soluções com IA",
     description:
-      "Integramos inteligência artificial ao seu negócio com chatbots, automações inteligentes, análise preditiva e muito mais.",
+      "Desenvolvemos o Nordy, seu assistente inteligente personalizado. Automatize processos, qualifique leads e ofereça suporte 24/7 com o que há de mais moderno em IA.",
+    id: "ia-solution",
   },
   {
     icon: Code2,
@@ -46,6 +48,12 @@ const solutions = [
 const STAGGER = [0, 80, 160, 240, 320]
 
 export function Solutions() {
+  const handleCardClick = (id?: string) => {
+    if (id === "ia-solution") {
+      window.dispatchEvent(new CustomEvent("open-nordy-chat"))
+    }
+  }
+
   return (
     <section id="solucoes" className="py-24 px-6">
       <div className="max-w-7xl mx-auto">
@@ -79,7 +87,10 @@ export function Solutions() {
                 animation="fade-up"
                 delay={STAGGER[i] ?? 0}
               >
-                <div className="card-hover group relative p-8 rounded-xl border border-border bg-card hover:border-primary/40 overflow-hidden h-full">
+                <div
+                  className="card-hover group relative p-8 rounded-xl border border-border bg-card hover:border-primary/40 overflow-hidden h-full cursor-pointer"
+                  onClick={() => handleCardClick((s as any).id)}
+                >
                   {/* Hover glow — CSS handles opacity transition */}
                   <div
                     className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-400 pointer-events-none"
@@ -101,9 +112,9 @@ export function Solutions() {
                     {s.description}
                   </p>
 
-                  {/* "Saiba mais" — appears on hover */}
+                  {/* "Ver mais" — appears on hover */}
                   <div className="mt-6 flex items-center gap-1 text-primary text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-1 group-hover:translate-y-0">
-                    Saiba mais
+                    Ver mais
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                       <path d="M1 7h12M8 3l5 4-5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
