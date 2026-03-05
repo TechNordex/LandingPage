@@ -14,14 +14,48 @@ export async function POST(request: Request) {
 
     const { data, error } = await resend.emails.send({
       from: "Nordex Tech <onboarding@resend.dev>",
-      to: ["technordex@gmail.com"],
+      to: ["contato@nordex.tech"], // O email que receberá os contatos
       subject: `Novo Lead do Site: ${name}`,
       html: `
-        <h2>Novo contato recebido pelo site!</h2>
-        <p><strong>Nome:</strong> ${name}</p>
-        <p><strong>WhatsApp:</strong> ${whatsapp}</p>
-        <p><strong>Foco atual (Desafio):</strong> ${challenge || "Não informado"}</p>
-        <p><strong>Tamanho da equipe:</strong> ${teamSize || "Não informado"}</p>
+        <div style="font-family: Arial, sans-serif; background-color: #111111; color: #f2f2f2; margin: 0; padding: 40px 20px;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #1a1a1a; border: 1px solid #333333; border-radius: 8px; overflow: hidden;">
+            <div style="background-color: #000000; padding: 24px; text-align: center; border-bottom: 2px solid #f5a800;">
+              <h1 style="margin: 0; color: #f5a800; font-size: 24px; font-weight: bold; letter-spacing: 1px;">NORDEX TECH</h1>
+            </div>
+            
+            <div style="padding: 32px 24px;">
+              <h2 style="font-size: 20px; margin-top: 0; margin-bottom: 24px; color: #ffffff;">Novo Lead do Site! 🚀</h2>
+              
+              <div style="margin-bottom: 16px;">
+                <span style="display: block; font-size: 12px; text-transform: uppercase; color: #a1a1aa; margin-bottom: 4px; letter-spacing: 1px;">Nome do Contato</span>
+                <span style="display: block; font-size: 16px; color: #f2f2f2; background-color: #222222; padding: 12px; border-radius: 6px; border-left: 3px solid #f5a800;">${name}</span>
+              </div>
+              
+              <div style="margin-bottom: 16px;">
+                <span style="display: block; font-size: 12px; text-transform: uppercase; color: #a1a1aa; margin-bottom: 4px; letter-spacing: 1px;">WhatsApp</span>
+                <span style="display: block; font-size: 16px; color: #f2f2f2; background-color: #222222; padding: 12px; border-radius: 6px; border-left: 3px solid #f5a800;">${whatsapp}</span>
+              </div>
+              
+              <div style="margin-bottom: 16px;">
+                <span style="display: block; font-size: 12px; text-transform: uppercase; color: #a1a1aa; margin-bottom: 4px; letter-spacing: 1px;">Desafio / Foco Atual</span>
+                <span style="display: block; font-size: 16px; color: #f2f2f2; background-color: #222222; padding: 12px; border-radius: 6px; border-left: 3px solid #f5a800;">${challenge || "Não informado"}</span>
+              </div>
+              
+              <div style="margin-bottom: 16px;">
+                <span style="display: block; font-size: 12px; text-transform: uppercase; color: #a1a1aa; margin-bottom: 4px; letter-spacing: 1px;">Tamanho da Equipe</span>
+                <span style="display: block; font-size: 16px; color: #f2f2f2; background-color: #222222; padding: 12px; border-radius: 6px; border-left: 3px solid #f5a800;">${teamSize || "Não informado"}</span>
+              </div>
+              
+              <div style="text-align: center; margin-top: 32px;">
+                <a href="https://wa.me/55${whatsapp.replace(/\D/g, "")}" style="display: inline-block; background-color: #f5a800; color: #000000; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: bold; font-size: 14px;">Chamar no WhatsApp</a>
+              </div>
+            </div>
+            
+            <div style="background-color: #000000; padding: 16px; text-align: center; font-size: 12px; color: #666666;">
+              Este e-mail foi gerado automaticamente pelo formulário da Nordex Tech.
+            </div>
+          </div>
+        </div>
       `,
     })
 

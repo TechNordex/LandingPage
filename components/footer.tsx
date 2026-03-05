@@ -1,9 +1,21 @@
 import Image from "next/image"
 
 const links = {
-  Empresa: ["Sobre nós", "Projetos", "Contato"],
-  Soluções: ["Sistemas Web", "Apps Mobile", "APIs & Integrações", "BI & Dados"],
-  Suporte: ["WhatsApp", "E-mail", "FAQ"],
+  Empresa: [
+    { label: "Sobre nós", href: "#sobre" },
+    { label: "Projetos", href: "#projetos" },
+    { label: "Contato", href: "#contato" },
+  ],
+  Soluções: [
+    { label: "Sistemas Web", href: "#solucoes" },
+    { label: "Apps Mobile", href: "#solucoes" },
+    { label: "APIs & Integrações", href: "#solucoes" },
+    { label: "BI & Dados", href: "#solucoes" },
+  ],
+  Suporte: [
+    { label: "WhatsApp", href: "https://api.whatsapp.com/send?phone=5581984889683" },
+    { label: "E-mail", href: "mailto:contato@nordex.tech" },
+  ],
 }
 
 export function Footer() {
@@ -35,12 +47,12 @@ export function Footer() {
               </h4>
               <ul className="flex flex-col gap-2.5">
                 {items.map((item) => (
-                  <li key={item}>
+                  <li key={item.label}>
                     <a
-                      href="#"
+                      href={item.href}
                       className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      {item}
+                      {item.label}
                     </a>
                   </li>
                 ))}
@@ -54,14 +66,6 @@ export function Footer() {
           <p className="text-xs text-muted-foreground">
             © {new Date().getFullYear()} Nordex Tech. Todos os direitos reservados.
           </p>
-          <div className="flex items-center gap-4">
-            <a href="#" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              Política de Privacidade
-            </a>
-            <a href="#" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              Termos de Uso
-            </a>
-          </div>
         </div>
       </div>
     </footer>

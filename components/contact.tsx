@@ -109,8 +109,8 @@ export function Contact() {
               {
                 icon: Mail,
                 label: "E-mail",
-                value: "technordex@gmail.com",
-                href: "mailto:technordex@gmail.com",
+                value: "contato@nordex.tech",
+                href: "mailto:contato@nordex.tech",
               },
               {
                 icon: Phone,
@@ -122,7 +122,6 @@ export function Contact() {
                 icon: MapPin,
                 label: "Localização",
                 value: "Moreno, Pernambuco, Brasil",
-                href: "#",
               },
             ].map((item) => {
               const Icon = item.icon
