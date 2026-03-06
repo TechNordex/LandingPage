@@ -7,7 +7,7 @@
  */
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import { Menu, X } from "lucide-react"
 
@@ -22,32 +22,42 @@ const navLinks = [
 export function Navbar() {
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const [scrollProgress, setScrollProgress] = useState(0)
+  const progressBarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handleScroll = () => {
+    let animationFrameId: number
+
+    const updateScroll = () => {
       const scrollTop = window.scrollY
       const docHeight = document.documentElement.scrollHeight - window.innerHeight
 
       setScrolled(scrollTop > 20)
-      setScrollProgress(docHeight > 0 ? scrollTop / docHeight : 0)
+
+      if (progressBarRef.current) {
+        const progress = docHeight > 0 ? scrollTop / docHeight : 0
+        progressBarRef.current.style.setProperty("--scroll-progress", progress.toString())
+      }
+
+      animationFrameId = requestAnimationFrame(updateScroll)
     }
 
-    window.addEventListener("scroll", handleScroll, { passive: true })
-    return () => window.removeEventListener("scroll", handleScroll)
+    animationFrameId = requestAnimationFrame(updateScroll)
+
+    return () => cancelAnimationFrame(animationFrameId)
   }, [])
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
-          ? "bg-background/95 backdrop-blur-md border-b border-border"
-          : "bg-transparent"
+        ? "bg-background/95 backdrop-blur-md border-b border-border"
+        : "bg-transparent"
         }`}
     >
       {/* ── Scroll progress bar (golden line) ── */}
       <div
+        ref={progressBarRef}
         className="scroll-progress-bar"
-        style={{ "--scroll-progress": scrollProgress } as React.CSSProperties}
+        style={{ "--scroll-progress": "0" } as React.CSSProperties}
         aria-hidden="true"
       />
 
