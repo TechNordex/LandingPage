@@ -13,8 +13,8 @@ export async function POST(request: Request) {
     }
 
     const { data, error } = await resend.emails.send({
-      from: "Nordex Tech <onboarding@resend.dev>",
-      to: ["contato@nordex.tech"], // O email que receberá os contatos
+      from: "Nordex Tech <contato@nordex.tech>",
+      to: ["contato@nordex.tech"],
       subject: `Novo Lead do Site: ${name}`,
       html: `
         <div style="font-family: Arial, sans-serif; background-color: #111111; color: #f2f2f2; margin: 0; padding: 40px 20px;">
