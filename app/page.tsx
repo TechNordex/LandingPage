@@ -8,10 +8,12 @@ import { CtaBanner } from "@/components/cta-banner"
 import { Contact } from "@/components/contact"
 import { Footer } from "@/components/footer"
 import { ChatWidget } from "@/components/chat-widget"
+import { InteractiveMesh } from "@/components/interactive-mesh"
 
 export default function Home() {
   return (
-    <main>
+    <main className="relative bg-transparent">
+      <InteractiveMesh />
       <Navbar />
       <Hero />
       <Solutions />
