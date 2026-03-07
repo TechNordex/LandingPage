@@ -58,43 +58,43 @@ export function Solutions() {
     <section id="solucoes" className="py-24 px-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <AnimateOnScroll animation="fade-up">
-          <div className="mb-16 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-            <div>
-              <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-3">
-                O que fazemos
-              </p>
-              <h2
-                className="text-3xl md:text-5xl font-bold text-foreground text-balance max-w-xl"
-                style={{ fontFamily: "var(--font-space-grotesk)" }}
-              >
-                Soluções completas para cada etapa do seu negócio
-              </h2>
-            </div>
-            <p className="text-muted-foreground max-w-sm leading-relaxed">
-              Da ideia ao produto final, a Nordex Tech está do seu lado com tecnologia de ponta e expertise regional.
+        <div className="animate-on-scroll anim-mask-reveal is-visible mb-16 flex flex-col md:flex-row md:items-end md:justify-between gap-6"
+          style={{ animationName: 'maskReveal', animationDuration: '1.2s' }}>
+          <div>
+            <p className="text-primary text-sm font-semibold tracking-[0.2em] uppercase mb-4">
+              O que fazemos
             </p>
+            <h2
+              className="text-3xl md:text-5xl lg:text-6xl font-black text-foreground text-balance max-w-2xl leading-[1.1] tracking-tight"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              Soluções completas para cada etapa do seu negócio
+            </h2>
           </div>
-        </AnimateOnScroll>
+          <p className="text-muted-foreground/80 max-w-sm leading-relaxed font-medium">
+            Da ideia ao produto final, a Nordex Tech está do seu lado com tecnologia de ponta e expertise regional.
+          </p>
+        </div>
 
         {/* Cards grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {solutions.map((s, i) => {
             const Icon = s.icon
             return (
               <AnimateOnScroll
                 key={s.title}
                 animation="fade-up"
-                delay={STAGGER[i] ?? 0}
+                delay={i * 100}
+                className="h-full"
               >
                 <div
-                  className="card-hover group relative p-8 rounded-xl border border-border bg-card hover:border-primary/40 overflow-hidden h-full cursor-pointer"
+                  className="card-hover group relative p-10 rounded-2xl border border-white/5 bg-surface/30 backdrop-blur-xl hover:border-primary/30 overflow-hidden h-full cursor-pointer transition-all duration-500"
                   onClick={() => handleCardClick((s as any).id)}
                 >
-                  {/* Hover glow — CSS handles opacity transition */}
+                  {/* Hover glow */}
                   <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-400 pointer-events-none"
-                    style={{ background: "radial-gradient(circle at top left, oklch(0.78 0.18 80), transparent 70%)" }}
+                    className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-700 pointer-events-none"
+                    style={{ background: "radial-gradient(circle at center, var(--primary), transparent 70%)" }}
                   />
 
                   {/* Icon with micro-rotation on hover */}

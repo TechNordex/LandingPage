@@ -18,12 +18,12 @@ const values = [
 
 export function About() {
   return (
-    <section id="sobre" className="py-24 px-6 bg-card">
+    <section id="sobre" className="py-24 px-6 bg-transparent relative z-10">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         {/* Visual side — slides in from left */}
         <AnimateOnScroll animation="slide-right">
           <div className="relative">
-            <div className="relative flex items-center justify-center rounded-2xl overflow-hidden border border-border bg-card aspect-square max-w-md mx-auto lg:mx-0 p-10">
+            <div className="relative flex items-center justify-center rounded-2xl overflow-hidden bg-surface aspect-square max-w-md mx-auto lg:mx-0 p-10">
               <Image
                 src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png"
                 alt="Nordex Tech — empresa de tecnologia"
@@ -34,7 +34,7 @@ export function About() {
             </div>
 
             {/* Side tag */}
-            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:-bottom-5 lg:-right-5 bg-card border border-border rounded-xl px-5 py-3 shadow-xl">
+            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:-bottom-5 lg:-right-5 bg-surface rounded-xl px-5 py-3">
               <p className="text-xs font-semibold text-muted-foreground">Sede em</p>
               <p className="text-sm font-bold text-foreground">Moreno, PE</p>
             </div>

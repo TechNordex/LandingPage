@@ -26,7 +26,7 @@ const founders = [
 
 export function Founders() {
   return (
-    <section id="equipe" className="py-24 px-6 bg-card">
+    <section id="equipe" className="py-24 px-6 bg-transparent relative z-10">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-16 text-center">
@@ -49,7 +49,7 @@ export function Founders() {
           {founders.map((f) => (
             <div
               key={f.name}
-              className="group relative p-8 rounded-xl border border-border bg-background flex flex-col items-center text-center gap-5 hover:border-primary/40 transition-all duration-300"
+              className="group relative p-8 rounded-xl bg-card flex flex-col items-center text-center gap-5 hover:border-primary/40 transition-all duration-300"
             >
               {/* Avatar */}
               <div className="w-20 h-20 rounded-full bg-primary/15 text-primary flex items-center justify-center text-2xl font-bold border-2 border-primary/30"

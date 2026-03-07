@@ -140,7 +140,7 @@ function DiagnosticCard({ cat, delay }: { cat: Category; delay: number }) {
 
   return (
     <AnimateOnScroll animation="fade-up" delay={delay}>
-      <div className="group relative flex flex-col rounded-xl border border-border bg-card overflow-hidden h-full hover:border-primary/30 transition-colors duration-300">
+      <div className="group relative flex flex-col rounded-xl border border-white/5 bg-card/20 backdrop-blur-[12px] overflow-hidden h-full hover:border-primary/30 transition-colors duration-300">
         {/* Golden line grows on hover */}
         <div className="absolute top-0 left-0 h-[2px] w-0 group-hover:w-full bg-primary/60 transition-all duration-500 ease-out" />
 
@@ -174,8 +174,8 @@ function DiagnosticCard({ cat, delay }: { cat: Category; delay: number }) {
                   key={ch.label}
                   onClick={() => handleSelect(idx)}
                   className={`w-full text-left text-sm px-4 py-2.5 rounded-lg border transition-all duration-200 flex items-center justify-between gap-2 ${isActive
-                      ? "border-primary/50 bg-primary/10 text-foreground"
-                      : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-primary/5"
+                    ? "border-primary/50 bg-primary/10 text-foreground"
+                    : "border-white/5 bg-transparent text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-primary/5"
                     }`}
                 >
                   <span>{ch.label}</span>
@@ -225,22 +225,21 @@ export function Projects() {
     <section id="projetos" className="py-24 px-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <AnimateOnScroll animation="fade-up">
-          <div className="mb-16 text-center">
-            <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-3">
-              Como podemos ajudar
-            </p>
-            <h2
-              className="text-3xl md:text-5xl font-bold text-foreground text-balance"
-              style={{ fontFamily: "var(--font-space-grotesk)" }}
-            >
-              Como nossa equipe pode auxiliar você ou sua empresa
-            </h2>
-            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Selecione um desafio abaixo e veja como nossa equipe pode ajudar você ou seu negócio.
-            </p>
-          </div>
-        </AnimateOnScroll>
+        <div className="animate-on-scroll anim-mask-reveal is-visible mb-16 text-center"
+          style={{ animationName: 'maskReveal', animationDuration: '1.2s' }}>
+          <p className="text-primary text-sm font-semibold tracking-[0.2em] uppercase mb-4">
+            Como podemos ajudar
+          </p>
+          <h2
+            className="text-3xl md:text-5xl lg:text-6xl font-black text-foreground text-balance leading-[1.1] tracking-tight"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
+            Como nossa equipe pode auxiliar você ou sua empresa
+          </h2>
+          <p className="mt-6 text-muted-foreground/80 max-w-2xl mx-auto leading-relaxed font-medium">
+            Selecione um desafio abaixo e veja como nossa equipe pode ajudar você ou seu negócio.
+          </p>
+        </div>
 
         {/* Diagnostic cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

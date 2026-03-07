@@ -84,7 +84,7 @@ export function Contact() {
   }
 
   return (
-    <section id="contato" className="py-24 px-6 bg-card">
+    <section id="contato" className="py-24 px-6 bg-transparent relative z-10">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-16 text-center">
@@ -168,7 +168,6 @@ export function Contact() {
           </div>
 
           {/* Form */}
-          <div className="lg:col-span-3 bg-surface border border-border rounded-xl p-8 md:p-10 shadow-sm relative overflow-hidden">
           <div className="lg:col-span-3 bg-card/20 backdrop-blur-[12px] border border-white/5 rounded-xl p-8 md:p-10 relative overflow-hidden">
             {sent ? (
               <div className="h-full flex flex-col items-center justify-center text-center gap-4 py-8">

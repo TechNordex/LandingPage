@@ -9,55 +9,12 @@
 "use client"
 
 import { ArrowRight, ChevronDown } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useTextScramble } from "@/hooks/use-text-scramble"
 import { MagneticWrapper } from "@/components/magnetic-wrapper"
-
-/**
- * useTypewriter
- * -------------
- * Types `target` one character at a time.
- * Returns:
- *   - `text`      — the currently-displayed substring
- *   - `isDone`    — true once all characters are revealed
- *
- * Deliberately uses the same heading font throughout (no font-switching).
- * The tech identity comes from the blinking cursor, not from code aesthetics.
- */
-function useTypewriter(target: string, { speed = 70, startDelay = 600 } = {}) {
-  const [text, setText] = useState("")
-  const [isDone, setIsDone] = useState(false)
-
-  useEffect(() => {
-    setText("")
-    setIsDone(false)
-
-    const timers: ReturnType<typeof setTimeout>[] = []
-
-    const startId = setTimeout(() => {
-      let i = 0
-      const intervalId = setInterval(() => {
-        i++
-        setText(target.slice(0, i))
-        if (i >= target.length) {
-          clearInterval(intervalId)
-          // Brief pause then hide cursor
-          const doneId = setTimeout(() => setIsDone(true), 800)
-          timers.push(doneId)
-        }
-      }, speed)
-      timers.push(intervalId as unknown as ReturnType<typeof setTimeout>)
-    }, startDelay)
-
-    timers.push(startId)
-    return () => timers.forEach(clearTimeout)
-  }, [target, speed, startDelay])
-
-  return { text, isDone }
-}
 
 /* ── Component ─────────────────────────────────────── */
 export function Hero() {
-  const { text: typed, isDone } = useTypewriter("transformam", { speed: 70, startDelay: 800 })
+  const { text: scrambled, isDone } = useTextScramble("transformam", { speed: 30, startDelay: 1000 })
 
   return (
     <section
@@ -66,57 +23,48 @@ export function Hero() {
     >
       {/* Background grid */}
       <div
-        className="absolute inset-0 opacity-[0.04]"
+        className="absolute inset-0 opacity-[0.03]"
         style={{
           backgroundImage:
             "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
+          backgroundSize: "64px 64px",
         }}
       />
 
       {/* Glow accent */}
       <div
-        className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-10 pointer-events-none"
-        style={{ background: "radial-gradient(circle, oklch(0.78 0.18 80) 0%, transparent 70%)" }}
+        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full opacity-10 pointer-events-none blur-[120px]"
+        style={{ background: "radial-gradient(circle, var(--gold) 0%, transparent 70%)" }}
       />
+
 
       {/* Main Content Wrapper (centered vertically) */}
       <div className="flex flex-col items-center justify-center flex-1 w-full relative z-10">
         {/* Badge — delay 0 */}
         <div
-          className="mb-6 animate-on-scroll anim-fade-up is-visible"
-          style={{ animationDelay: "0ms" }}
+          className="mb-8 animate-on-scroll anim-fade-up is-visible"
+          style={{ animationDelay: "100ms" }}
         >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold tracking-widest uppercase">
+          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-primary/20 bg-primary/5 text-primary text-[10px] font-bold tracking-[0.2em] uppercase backdrop-blur-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            Tecnologia feita no Nordeste para o Brasil
+            Tecnologia Nordestina • Escopo Nacional
           </div>
         </div>
 
         {/* Heading — delay 150ms */}
         <h1
-          className="text-center text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-balance max-w-5xl animate-on-scroll anim-fade-up is-visible"
-          style={{ fontFamily: "var(--font-space-grotesk)", animationDelay: "150ms" }}
+          className="text-center text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.9] tracking-tight text-balance max-w-6xl animate-on-scroll anim-fade-up is-visible"
+          style={{ fontFamily: "var(--font-heading)", animationDelay: "250ms" }}
         >
           Soluções digitais que{" "}
-          {/*
-            Typewriter: same font as the heading throughout.
-            The blinking golden cursor is the only "tech" signal needed.
-          */}
-          <span className="text-primary whitespace-nowrap">
-            {typed}
-            {/* Cursor — blinks while typing, disappears when done */}
+          <span className="text-primary inline-block min-w-[1.2em] relative">
+            {scrambled}
             <span
               aria-hidden="true"
-              className="inline-block w-[3px] h-[0.85em] bg-primary align-middle ml-[2px] rounded-sm"
+              className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-[0.7em] bg-primary rounded-full transition-opacity duration-300"
               style={{
-                /* Stop animation when done so it releases opacity control */
-                animationName: isDone ? "none" : "cursorBlink",
-                animationDuration: "0.8s",
-                animationTimingFunction: "step-end",
-                animationIterationCount: "infinite",
                 opacity: isDone ? 0 : 1,
-                transition: "opacity 0.5s ease",
+                boxShadow: "0 0 10px var(--primary)",
               }}
             />
           </span>{" "}
@@ -125,17 +73,17 @@ export function Hero() {
 
         {/* Paragraph — delay 280ms */}
         <p
-          className="mt-6 text-center text-lg md:text-xl text-muted-foreground max-w-2xl leading-relaxed text-pretty animate-on-scroll anim-fade-up is-visible"
-          style={{ animationDelay: "280ms" }}
+          className="mt-10 text-center text-lg md:text-xl text-muted-foreground/80 max-w-2xl leading-relaxed text-pretty font-medium animate-on-scroll anim-fade-up is-visible"
+          style={{ animationDelay: "400ms" }}
         >
-          A Nordex Tech desenvolve sistemas, plataformas e produtos digitais sob medida
-          do planejamento à entrega para empresas que querem crescer com tecnologia de verdade.
+          A Nordex Tech desenvolve sistemas e produtos digitais sob medida,
+          do planejamento à entrega, para empresas que buscam o estado da arte.
         </p>
 
         {/* CTAs — delay 400ms */}
         <div
-          className="mt-10 flex flex-col sm:flex-row items-center gap-4 animate-on-scroll anim-fade-up is-visible"
-          style={{ animationDelay: "400ms" }}
+          className="mt-12 flex flex-col sm:flex-row items-center gap-6 animate-on-scroll anim-fade-up is-visible"
+          style={{ animationDelay: "550ms" }}
         >
           <MagneticWrapper>
             <a
@@ -196,16 +144,16 @@ export function Hero() {
                 href="https://vinumcomunicacao.com.br/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="relative z-10 flex items-center justify-center h-24 px-8 bg-surface/50 border border-border/50 rounded-xl hover:bg-surface hover:border-primary/30 transition-all duration-300 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 hover:scale-[1.02]"
+                className="relative z-10 flex items-center justify-center h-24 px-8 bg-surface rounded-xl hover:bg-surface-hover hover:border-primary/30 transition-all duration-300 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 hover:scale-[1.02]"
               >
                 <img src="/logos/logo-vinum.png" alt="Vinum Comunicação" className="h-[65px] md:h-[80px] object-contain drop-shadow-sm" />
               </a>
 
               {/* Tooltip / Balão de depoimento */}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-[320px] md:w-[380px] opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-50">
-                <div className="relative bg-card border border-border rounded-xl p-5 shadow-xl">
+                <div className="relative bg-card rounded-xl p-5 shadow-xl">
                   {/* Seta para baixo */}
-                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-card border-b border-r border-border rotate-45" />
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-card rotate-45" />
                   <p className="relative text-sm text-muted-foreground leading-relaxed italic text-balance text-center">
                     "Ótima experiência com a Nordex Tech! O sistema da nossa landing page funciona perfeitamente e superou nossas expectativas. A equipe se mostrou sempre disponível para melhorias e muito eficaz. Um serviço de extrema competência e profissionalismo."
                   </p>
@@ -219,16 +167,16 @@ export function Hero() {
                 href="https://bibiscuitaloja.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="relative z-10 flex items-center justify-center h-24 px-8 bg-surface/50 border border-border/50 rounded-xl hover:bg-surface hover:border-primary/30 transition-all duration-300 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 hover:scale-[1.02]"
+                className="relative z-10 flex items-center justify-center h-24 px-8 bg-surface rounded-xl hover:bg-surface-hover hover:border-primary/30 transition-all duration-300 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 hover:scale-[1.02]"
               >
                 <img src="/logos/bibiscuit-logo.avif" alt="BiBiscuit ALoja" className="h-[70px] md:h-[90px] object-contain drop-shadow-sm" />
               </a>
 
               {/* Tooltip / Balão de depoimento */}
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-[320px] md:w-[380px] opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-50">
-                <div className="relative bg-card border border-border rounded-xl p-5 shadow-xl">
+                <div className="relative bg-card rounded-xl p-5 shadow-xl">
                   {/* Seta para baixo */}
-                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-card border-b border-r border-border rotate-45" />
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-card rotate-45" />
                   <p className="relative text-sm text-muted-foreground leading-relaxed italic text-balance text-center">
                     "Ótimo sistema! A Nordex Tech está sempre disponível para realizar alterações. Gostei muito pois compreenderam minhas necessidades e funciona perfeitamente de forma muito intuitiva, permitindo o uso sem dificuldades."
                   </p>

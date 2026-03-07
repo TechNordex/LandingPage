@@ -47,10 +47,10 @@
   --surface: oklch(0.17 0 0);
   --surface-hover: oklch(0.22 0 0);
 
-  /* Animation timing — edit these to tune globally */
-  --anim-duration: 0.65s;
+  /* Animation timing — premium, more deliberate and smooth */
+  --anim-duration: 1200ms;
   --anim-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --anim-offset: 28px;
+  --anim-offset: 24px;
   /* distance elements travel on enter */
 }
 
@@ -118,11 +118,13 @@
   from {
     opacity: 0;
     transform: translateY(var(--anim-offset));
+    filter: blur(8px);
   }
 
   to {
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0);
   }
 }
 
@@ -140,11 +142,13 @@
   from {
     opacity: 0;
     transform: translateX(var(--anim-offset));
+    filter: blur(8px);
   }
 
   to {
     opacity: 1;
     transform: translateX(0);
+    filter: blur(0);
   }
 }
 
@@ -152,11 +156,25 @@
   from {
     opacity: 0;
     transform: translateX(calc(var(--anim-offset) * -1));
+    filter: blur(8px);
   }
 
   to {
     opacity: 1;
     transform: translateX(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes maskReveal {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(20px);
+  }
+
+  to {
+    clip-path: inset(0 0 0% 0);
+    transform: translateY(0);
   }
 }
 

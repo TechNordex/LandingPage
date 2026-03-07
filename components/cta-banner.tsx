@@ -22,18 +22,19 @@ export function CtaBanner() {
           style={{ background: "radial-gradient(circle, oklch(0.78 0.18 80), transparent 70%)" }}
         />
 
-        <AnimateOnScroll animation="fade-up">
-          <div className="relative z-10 rounded-2xl border border-primary/30 bg-card p-12 md:p-16 text-center">
-            <p className="text-primary text-sm font-semibold tracking-widest uppercase mb-4">
+        <div className="animate-on-scroll anim-mask-reveal is-visible"
+          style={{ animationName: 'maskReveal', animationDuration: '1.2s' }}>
+          <div className="relative z-10 rounded-3xl bg-surface/40 backdrop-blur-2xl p-12 md:p-20 text-center border border-white/5 shadow-2xl">
+            <p className="text-primary text-sm font-bold tracking-[0.3em] uppercase mb-6">
               Pronto para começar?
             </p>
             <h2
-              className="text-3xl md:text-5xl font-bold text-foreground text-balance mb-6 max-w-3xl mx-auto"
-              style={{ fontFamily: "var(--font-space-grotesk)" }}
+              className="text-3xl md:text-5xl lg:text-6xl font-black text-foreground text-balance mb-8 max-w-4xl mx-auto leading-[1.1] tracking-tight"
+              style={{ fontFamily: "var(--font-heading)" }}
             >
               Transforme sua ideia em realidade com a Nordex Tech
             </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto mb-10 leading-relaxed">
+            <p className="text-muted-foreground/80 max-w-2xl mx-auto mb-12 text-lg md:text-xl leading-relaxed font-medium">
               Não espere mais para digitalizar seu negócio. Entre em contato agora e receba uma proposta personalizada sem compromisso.
             </p>
 
@@ -56,7 +57,7 @@ export function CtaBanner() {
               </a>
             </div>
           </div>
-        </AnimateOnScroll>
+        </div>
       </div>
     </section>
   )
