@@ -169,6 +169,7 @@ export function Contact() {
 
           {/* Form */}
           <div className="lg:col-span-3 bg-surface border border-border rounded-xl p-8 md:p-10 shadow-sm relative overflow-hidden">
+          <div className="lg:col-span-3 bg-card/20 backdrop-blur-[12px] border border-white/5 rounded-xl p-8 md:p-10 relative overflow-hidden">
             {sent ? (
               <div className="h-full flex flex-col items-center justify-center text-center gap-4 py-8">
                 <div className="w-16 h-16 rounded-full bg-primary/20 text-primary flex items-center justify-center mb-2">
