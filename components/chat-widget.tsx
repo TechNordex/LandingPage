@@ -107,8 +107,24 @@ export function ChatWidget() {
                                         ? "bg-primary text-primary-foreground rounded-tr-none"
                                         : "bg-secondary text-foreground rounded-tl-none"
                                         }`}
+                                    style={{ wordBreak: "break-word" }}
                                 >
-                                    {msg.content}
+                                    {msg.content.split(/(https?:\/\/[^\s]+|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g).map((part, index) => {
+                                        if (part.match(/^https?:\/\//)) {
+                                            return (
+                                                <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="underline font-medium hover:opacity-80 transition-opacity">
+                                                    {part}
+                                                </a>
+                                            )
+                                        } else if (part.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)) {
+                                            return (
+                                                <a key={index} href={`mailto:${part}`} className="underline font-medium hover:opacity-80 transition-opacity">
+                                                    {part}
+                                                </a>
+                                            )
+                                        }
+                                        return <span key={index}>{part}</span>
+                                    })}
                                 </div>
                             </div>
                         ))}
