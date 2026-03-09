@@ -36,13 +36,16 @@ export async function POST(request: Request) {
 
         const { uri, mimeType } = await getOrUploadPdf()
 
-        // Monta histórico de conversa (sem a última mensagem)
-        const history = messages.slice(0, -1).map((m: { role: string; content: string }) => ({
+        // Limita o contexto às últimas 5 mensagens
+        const recentMessages = messages.slice(-5)
+
+        // Monta histórico de conversa (sem a última mensagem das recentes)
+        const history = recentMessages.slice(0, -1).map((m: { role: string; content: string }) => ({
             role: m.role === "user" ? "user" : "model",
             parts: [{ text: m.content }],
         }))
 
-        const lastMessage = messages[messages.length - 1]
+        const lastMessage = recentMessages[recentMessages.length - 1]
 
         const chat = ai.chats.create({
             model: "gemini-2.5-flash",
@@ -53,8 +56,9 @@ Seja sempre simpático, acolhedor e use linguagem leve e descontraída, mas prof
 Use APENAS as informações do documento PDF fornecido para responder sobre a empresa.
 Se a pergunta não estiver relacionada ao documento, responda com simpatia dizendo que só pode ajudar com informações sobre a Nordex Tech.
 Seja CONCISO: responda em no máximo 5 frases. Vá direto ao ponto.
+Se o usuário quiser falar com um humano, pedir um orçamento detalhado, agendar uma reunião ou se você não souber responder algo, sugira sempre que ele entre em contato com nossa equipe pelo WhatsApp através do link: https://wa.me/5581984889683 ou pelo e-mail: contato@nordex.tech
 
-REGRA ABSOLUTA DE FORMATAÇÃO: Você deve escrever APENAS texto puro e simples. É PROIBIDO usar qualquer elemento Markdown ou de formatação como: asteriscos (*), dois asteriscos (**), cerquilha (#), underline (_), hífen (-) para listas, ou qualquer outro símbolo especial de formatação. Escreva frases normais como em uma conversa, usando vírgulas e pontos para separar ideias. Nunca faça listas com marcadores.`,
+REGRA ABSOLUTA DE FORMATAÇÃO: Você deve escrever APENAS texto puro e simples. É PROIBIDO usar qualquer elemento Markdown ou de formatação como: asteriscos (*), dois asteriscos (**), cerquilha (#), underline (_), hífen (-) para listas, ou qualquer outro símbolo especial de formatação. Escreva frases normais como em uma conversa, usando vírgulas e pontos para separar ideias. Lembre-se, apenas texto puro, sem formatação.`,
             },
         })
 

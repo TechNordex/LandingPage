@@ -46,6 +46,24 @@ export function Navbar() {
     return () => cancelAnimationFrame(animationFrameId)
   }, [])
 
+  const handleScroll = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault()
+
+    // Smooth scroll to target area
+    if (href.startsWith("#")) {
+      const targetId = href.substring(1)
+      const elem = document.getElementById(targetId)
+      if (elem) {
+        elem.scrollIntoView({ behavior: "smooth" })
+      }
+    }
+
+    // Close mobile menu if open
+    if (open) {
+      setOpen(false)
+    }
+  }
+
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
@@ -63,7 +81,7 @@ export function Navbar() {
 
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo */}
-        <a href="#inicio" className="flex items-center gap-2">
+        <a href="#inicio" onClick={(e) => handleScroll(e, "#inicio")} className="flex items-center gap-2">
           <Image
             src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png"
             alt="Nordex Tech"
@@ -79,6 +97,7 @@ export function Navbar() {
             <a
               key={link.href}
               href={link.href}
+              onClick={(e) => handleScroll(e, link.href)}
               className="btn-slide text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 pb-px"
             >
               {link.label}
@@ -89,6 +108,7 @@ export function Navbar() {
         {/* CTA */}
         <a
           href="#contato"
+          onClick={(e) => handleScroll(e, "#contato")}
           className="hidden md:inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
         >
           Fale Conosco
@@ -115,7 +135,7 @@ export function Navbar() {
               key={link.href}
               href={link.href}
               className="text-base font-medium text-foreground hover:text-primary transition-colors"
-              onClick={() => setOpen(false)}
+              onClick={(e) => handleScroll(e, link.href)}
             >
               {link.label}
             </a>
@@ -123,7 +143,7 @@ export function Navbar() {
           <a
             href="#contato"
             className="mt-2 inline-flex items-center justify-center px-5 py-3 rounded-md bg-primary text-primary-foreground text-sm font-semibold"
-            onClick={() => setOpen(false)}
+            onClick={(e) => handleScroll(e, "#contato")}
           >
             Fale Conosco
           </a>
