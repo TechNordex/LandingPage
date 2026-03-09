@@ -3,11 +3,12 @@ import { NextResponse } from "next/server"
 import { readFileSync } from "fs"
 import { join } from "path"
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
-
 // Cache do arquivo enviado ao Gemini (válido por 48h)
 let cachedFileUri: string | null = null
 let cachedFileMime: string | null = null
+
+// Inicializa sob demanda
+const getAI = () => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" })
 
 async function getOrUploadPdf() {
     if (cachedFileUri) return { uri: cachedFileUri, mimeType: cachedFileMime! }
@@ -15,6 +16,7 @@ async function getOrUploadPdf() {
     const pdfPath = join(process.cwd(), "public", "nordex-info.pdf")
     const pdfBuffer = readFileSync(pdfPath)
 
+    const ai = getAI()
     const uploaded = await ai.files.upload({
         file: new Blob([pdfBuffer], { type: "application/pdf" }),
         config: { displayName: "nordex-info.pdf" },
@@ -47,6 +49,7 @@ export async function POST(request: Request) {
 
         const lastMessage = recentMessages[recentMessages.length - 1]
 
+        const ai = getAI()
         const chat = ai.chats.create({
             model: "gemini-2.5-flash",
             history,
