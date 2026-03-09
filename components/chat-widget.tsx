@@ -66,7 +66,7 @@ export function ChatWidget() {
             <button
                 onClick={() => setOpen((v) => !v)}
                 aria-label="Abrir chat"
-                className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:opacity-90 transition-all duration-300 hover:scale-105"
+                className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:opacity-90 transition-all duration-300 hover:scale-105 cursor-pointer"
                 style={{ boxShadow: "0 0 0 4px oklch(0.78 0.18 80 / 0.2)" }}
             >
                 {open ? <X size={22} /> : <MessageCircle size={22} />}
@@ -141,7 +141,7 @@ export function ChatWidget() {
                             <button
                                 onClick={handleSend}
                                 disabled={loading || !input.trim()}
-                                className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-40 shrink-0"
+                                className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-40 shrink-0 cursor-pointer disabled:cursor-not-allowed"
                             >
                                 <Send size={15} />
                             </button>
