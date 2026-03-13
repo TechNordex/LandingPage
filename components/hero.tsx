@@ -2,75 +2,62 @@
  * Hero
  * ----
  * - Text scramble effect on the highlighted word ("transformam")
- *   decodes characters randomly before settling — a high-tech, minimal reveal.
+ *   mimics a terminal decode, giving a tech/minimal feel.
  * - Staggered fade-up entrance for each element (badge → heading → paragraph → CTAs → stats)
  * - Scroll indicator with subtle pulse line instead of just a bouncing chevron
  */
 "use client"
 
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, ChevronDown } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { MagneticWrapper } from "@/components/magnetic-wrapper"
 
-const SCRAMBLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&"
-
 /**
- * useTextScramble
- * ---------------
- * Reveals `target` with a scramble effect: each character rapidly cycles
- * through random glyphs before locking into its final value.
+ * useTypewriter
+ * -------------
+ * Types `target` one character at a time.
  * Returns:
- *   - `text`   — the currently-displayed string (mix of scramble + settled chars)
- *   - `isDone` — true once all characters are settled
+ *   - `text`      — the currently-displayed substring
+ *   - `isDone`    — true once all characters are revealed
+ *
+ * Deliberately uses the same heading font throughout (no font-switching).
+ * The tech identity comes from the blinking cursor, not from code aesthetics.
  */
-function useTextScramble(target: string, { startDelay = 800, speed = 40 } = {}) {
+function useTypewriter(target: string, { speed = 70, startDelay = 600 } = {}) {
   const [text, setText] = useState("")
   const [isDone, setIsDone] = useState(false)
-  const frameRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     setText("")
     setIsDone(false)
-    let settled = 0
-    let frame = 0
+
+    const timers: ReturnType<typeof setTimeout>[] = []
 
     const startId = setTimeout(() => {
-      frameRef.current = setInterval(() => {
-        frame++
-        // Every `speed`ms we settle one more character
-        if (frame % 3 === 0 && settled < target.length) {
-          settled++
-        }
-        const display = target
-          .split("")
-          .map((char, i) => {
-            if (i < settled) return char
-            // Scramble unsettled chars
-            return SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)]
-          })
-          .join("")
-        setText(display)
-
-        if (settled >= target.length) {
-          if (frameRef.current) clearInterval(frameRef.current)
-          setText(target)
-          setTimeout(() => setIsDone(true), 600)
+      let i = 0
+      const intervalId = setInterval(() => {
+        i++
+        setText(target.slice(0, i))
+        if (i >= target.length) {
+          clearInterval(intervalId)
+          // Brief pause then hide cursor
+          const doneId = setTimeout(() => setIsDone(true), 800)
+          timers.push(doneId)
         }
       }, speed)
+      timers.push(intervalId as unknown as ReturnType<typeof setTimeout>)
     }, startDelay)
 
-    return () => {
-      clearTimeout(startId)
-      if (frameRef.current) clearInterval(frameRef.current)
-    }
-  }, [target, startDelay, speed])
+    timers.push(startId)
+    return () => timers.forEach(clearTimeout)
+  }, [target, speed, startDelay])
 
   return { text, isDone }
 }
 
 /* ── Component ─────────────────────────────────────── */
 export function Hero() {
-  const { text: typed, isDone } = useTextScramble("transformam", { speed: 40, startDelay: 800 })
+  const { text: typed, isDone } = useTypewriter("transformam", { speed: 70, startDelay: 800 })
 
   return (
     <section
@@ -106,17 +93,17 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Heading — delay 120ms */}
+        {/* Heading — delay 150ms */}
         <h1
           className="text-center text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-balance max-w-5xl animate-on-scroll anim-fade-up is-visible"
-          style={{ fontFamily: "var(--font-space-grotesk)", animationDelay: "120ms" }}
+          style={{ fontFamily: "var(--font-space-grotesk)", animationDelay: "150ms" }}
         >
           Soluções digitais que{" "}
           {/*
-            Scramble effect: same font as the heading throughout.
-            The unsettled characters give a high-tech, decoded feel.
+            Typewriter: same font as the heading throughout.
+            The blinking golden cursor is the only "tech" signal needed.
           */}
-          <span className="text-primary whitespace-nowrap font-mono">
+          <span className="text-primary whitespace-nowrap">
             {typed}
             {/* Cursor — blinks while typing, disappears when done */}
             <span
@@ -136,19 +123,19 @@ export function Hero() {
           o seu negócio
         </h1>
 
-        {/* Paragraph — delay 240ms */}
+        {/* Paragraph — delay 280ms */}
         <p
           className="mt-6 text-center text-lg md:text-xl text-muted-foreground max-w-2xl leading-relaxed text-pretty animate-on-scroll anim-fade-up is-visible"
-          style={{ animationDelay: "240ms" }}
+          style={{ animationDelay: "280ms" }}
         >
           A Nordex Tech desenvolve sistemas, plataformas e produtos digitais sob medida
           do planejamento à entrega para empresas que querem crescer com tecnologia de verdade.
         </p>
 
-        {/* CTAs — delay 360ms */}
+        {/* CTAs — delay 400ms */}
         <div
           className="mt-10 flex flex-col sm:flex-row items-center gap-4 animate-on-scroll anim-fade-up is-visible"
-          style={{ animationDelay: "360ms" }}
+          style={{ animationDelay: "400ms" }}
         >
           <MagneticWrapper>
             <a
@@ -172,10 +159,10 @@ export function Hero() {
           </MagneticWrapper>
         </div>
 
-        {/* Stats row — delay 480ms */}
+        {/* Stats row — delay 520ms */}
         <div
           className="mt-20 flex flex-col sm:flex-row items-center justify-center gap-12 max-w-2xl w-full animate-on-scroll anim-fade-up is-visible"
-          style={{ animationDelay: "480ms" }}
+          style={{ animationDelay: "520ms" }}
         >
           {[
             { value: "100%", label: "Foco em resultado" },
@@ -193,10 +180,10 @@ export function Hero() {
           ))}
         </div>
 
-        {/* Client Logos Ribbon — delay 580ms */}
+        {/* Client Logos Ribbon — delay 600ms */}
         <div
           className="mt-16 w-full max-w-4xl border-t border-border/50 pt-8 animate-on-scroll anim-fade-up is-visible"
-          style={{ animationDelay: "580ms" }}
+          style={{ animationDelay: "600ms" }}
         >
           <p className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-8">
             Empresas que confiam em nosso trabalho
@@ -252,20 +239,15 @@ export function Hero() {
         </div>
       </div>
 
-      {/* Scroll indicator — minimal pulse line */}
+      {/* Scroll indicator — natural flow instead of absolute positioning */}
       <a
         href="#solucoes"
-        className="mt-16 flex flex-col items-center gap-2 text-muted-foreground/50 hover:text-primary transition-colors duration-500 animate-on-scroll anim-fade-in is-visible relative z-10 group"
+        className="mt-16 flex flex-col items-center gap-1 text-muted-foreground hover:text-primary transition-colors animate-on-scroll anim-fade-in is-visible relative z-10"
         style={{ animationDelay: "700ms" }}
         aria-label="Rolar para baixo"
       >
-        <span className="text-[10px] tracking-[0.25em] uppercase font-light opacity-60 group-hover:opacity-100 transition-opacity">scroll</span>
-        <div className="w-[1px] h-10 bg-gradient-to-b from-primary/60 to-transparent relative overflow-hidden">
-          <div
-            className="absolute inset-x-0 top-0 h-full bg-primary"
-            style={{ animation: "scrollPulse 1.8s ease-in-out infinite" }}
-          />
-        </div>
+        <span className="text-xs tracking-widest uppercase">Explorar</span>
+        <ChevronDown size={20} className="animate-bounce" />
       </a>
     </section>
   )

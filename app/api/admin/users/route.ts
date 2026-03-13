@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ user: result.rows[0] }, { status: 201 })
     } catch (error: any) {
         console.error('[admin/users POST]', error)
-        if (error.code === '23505') { // unique violation
+        if (error.code === '23505') {
             return NextResponse.json({ error: 'Email já cadastrado' }, { status: 409 })
         }
         return NextResponse.json({ error: 'Erro ao criar usuário' }, { status: 500 })
@@ -70,9 +70,8 @@ export async function PUT(req: NextRequest) {
             return NextResponse.json({ error: 'Role inválida' }, { status: 400 })
         }
 
-        // Build dynamic query depending on whether password is provided
         let query = `UPDATE portal_users SET name = $1, email = $2, role = $3`
-        const values = [name, email.toLowerCase().trim(), role]
+        const values: any[] = [name, email.toLowerCase().trim(), role]
 
         if (password) {
             query += `, password_hash = crypt($4, gen_salt('bf', 10))`
@@ -95,5 +94,43 @@ export async function PUT(req: NextRequest) {
             return NextResponse.json({ error: 'Email já cadastrado' }, { status: 409 })
         }
         return NextResponse.json({ error: 'Erro ao atualizar usuário' }, { status: 500 })
+    }
+}
+
+export async function DELETE(req: NextRequest) {
+    const session = await getSession()
+    if (!session || session.role !== 'admin') {
+        return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
+    }
+
+    try {
+        const { id, force } = await req.json()
+
+        if (!id) {
+            return NextResponse.json({ error: 'ID do usuário é obrigatório' }, { status: 400 })
+        }
+
+        if (id === session.id) {
+            return NextResponse.json({ error: 'Você não pode excluir sua própria conta.' }, { status: 403 })
+        }
+
+        const projectCheck = await db.query(
+            `SELECT id, name FROM projects WHERE client_id = $1`,
+            [id]
+        )
+
+        if (projectCheck.rows.length > 0 && !force) {
+            return NextResponse.json({
+                warning: true,
+                projects: projectCheck.rows,
+                message: `Este usuário possui ${projectCheck.rows.length} projeto(s) vinculado(s). A exclusão irá remover todos os registros associados permanentemente.`
+            }, { status: 409 })
+        }
+
+        await db.query('DELETE FROM portal_users WHERE id = $1', [id])
+        return NextResponse.json({ success: true })
+    } catch (error: any) {
+        console.error('[admin/users DELETE]', error)
+        return NextResponse.json({ error: 'Erro ao excluir usuário' }, { status: 500 })
     }
 }

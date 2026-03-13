@@ -7,6 +7,12 @@ export async function GET() {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     try {
+        const userResult = await db.query(
+            'SELECT id, name, email, terms_accepted_at FROM portal_users WHERE id = $1',
+            [session.id]
+        )
+        const user = userResult.rows[0]
+
         const project = await db.query(
             'SELECT * FROM projects WHERE client_id = $1',
             [session.id]
@@ -22,7 +28,8 @@ export async function GET() {
         return NextResponse.json({
             project: project.rows[0] ?? null,
             updates: updates.rows,
-            user: { name: session.name, email: session.email }
+            user: { name: user.name, email: user.email },
+            termsAccepted: !!user.terms_accepted_at,
         })
     } catch (error) {
         console.error('[dashboard/project GET]', error)

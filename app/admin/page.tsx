@@ -6,8 +6,9 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { LogOut, Plus, Activity, Send, Loader2, X, Edit, Users, FolderKanban, CheckCircle2, Clock, MessageSquareText, FileEdit, Link as LinkIcon, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown, AlertCircle } from 'lucide-react'
+import { LogOut, Plus, Activity, Send, Loader2, X, Edit, Users, FolderKanban, CheckCircle2, Clock, MessageSquareText, FileEdit, Link as LinkIcon, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown, AlertCircle, Trash2 } from 'lucide-react'
 import type { Project, PortalUser, ProjectUpdate } from '@/lib/types'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts'
 import { STAGES } from '@/lib/types'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -48,6 +49,11 @@ export default function AdminPage() {
     const [editUserPassword, setEditUserPassword] = useState('')
     const [editUserRole, setEditUserRole] = useState('client')
     const [editUserLoading, setEditUserLoading] = useState(false)
+
+    // Delete user state
+    const [deletingUser, setDeletingUser] = useState<PortalUser | null>(null)
+    const [deleteWarning, setDeleteWarning] = useState<{ message: string; projects: { id: string; name: string }[] } | null>(null)
+    const [deleteLoading, setDeleteLoading] = useState(false)
 
     const [newProjectName, setNewProjectName] = useState('')
     const [newProjectClientId, setNewProjectClientId] = useState('')
@@ -130,7 +136,29 @@ export default function AdminPage() {
             const res = await fetch('/api/admin/users', { method: 'PUT', body: JSON.stringify({ id: editingUser.id, name: editUserName, email: editUserEmail, password: editUserPassword || undefined, role: editUserRole }) })
             if (!res.ok) throw new Error()
             setEditingUser(null); fetchData()
-        } catch (err) { alert('Erro ao edtiar') } finally { setEditUserLoading(false) }
+        } catch (err) { alert('Erro ao editar') } finally { setEditUserLoading(false) }
+    }
+
+    const handleDeleteUser = async (force = false) => {
+        if (!deletingUser) return
+        setDeleteLoading(true)
+        try {
+            const res = await fetch('/api/admin/users', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: deletingUser.id, force })
+            })
+            const data = await res.json()
+            if (res.status === 409 && data.warning) {
+                // Show project warning — require force confirm
+                setDeleteWarning({ message: data.message, projects: data.projects })
+            } else if (!res.ok) {
+                alert(data.error || 'Erro ao excluir usuário')
+                setDeletingUser(null); setDeleteWarning(null)
+            } else {
+                setDeletingUser(null); setDeleteWarning(null); fetchData()
+            }
+        } catch { alert('Erro de conexão') } finally { setDeleteLoading(false) }
     }
 
     const handleCreateProject = async (e: React.FormEvent) => {
@@ -180,15 +208,24 @@ export default function AdminPage() {
 
             <main className="max-w-7xl mx-auto px-6 py-8">
                 {/* Custom Elegant Tab System */}
-                <div className="flex items-center justify-between mb-8 pb-4 border-b border-border/50">
-                    <div className="inline-flex items-center bg-card border border-border rounded-lg p-1.5 shadow-sm">
-                        <button onClick={() => setActiveTab('overview')} className={`px-5 py-2 rounded-md text-[13px] font-semibold transition-all ${activeTab === 'overview' ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}>
+                <div className="flex items-center justify-center mb-10 pb-4 border-b border-border/30">
+                    <div className="inline-flex items-center bg-card/40 backdrop-blur-md border border-border/50 rounded-xl p-1.5 shadow-2xl">
+                        <button 
+                            onClick={() => setActiveTab('overview')} 
+                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 ${activeTab === 'overview' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
+                        >
                             Visão Geral
                         </button>
-                        <button onClick={() => setActiveTab('projects')} className={`px-5 py-2 rounded-md text-[13px] font-semibold transition-all ${activeTab === 'projects' ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}>
+                        <button 
+                            onClick={() => setActiveTab('projects')} 
+                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 ${activeTab === 'projects' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
+                        >
                             Esteiras & Diários
                         </button>
-                        <button onClick={() => setActiveTab('users')} className={`px-5 py-2 rounded-md text-[13px] font-semibold transition-all ${activeTab === 'users' ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}>
+                        <button 
+                            onClick={() => setActiveTab('users')} 
+                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 ${activeTab === 'users' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
+                        >
                             Painel de Usuários
                         </button>
                     </div>
@@ -214,23 +251,151 @@ export default function AdminPage() {
                             ))}
                         </div>
 
-                        <div className="bg-card border border-border rounded-2xl overflow-hidden p-[1px]">
-                            <div className="bg-background rounded-2xl p-8">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
-                                    <h3 className="text-[18px] font-semibold tracking-tight text-foreground flex items-center gap-3">
-                                        <FolderKanban size={20} className="text-primary"/> Fluxo Operacional Rápido
-                                    </h3>
-                                    <div className="flex gap-3">
-                                        <button onClick={() => setShowNewClient(true)} className="h-10 px-4 rounded-lg bg-secondary border border-border text-[13px] font-medium hover:bg-white/5 inline-flex items-center gap-2 relative group overflow-hidden">
-                                            <span className="relative z-10"><Users size={14} className="inline mr-1" /> Novo Usuário</span>
-                                        </button>
-                                        <button onClick={() => setShowNewProject(true)} className="h-10 px-5 rounded-lg bg-primary text-primary-foreground font-semibold text-[13px] hover:opacity-90 inline-flex items-center gap-2 shadow-[0_0_15px_rgba(245,168,0,0.15)] relative overflow-hidden">
-                                            <span>Novo Projeto</span>
-                                        </button>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Alert System Center */}
+                            <div className="lg:col-span-2 space-y-6">
+                                <div className="bg-card border border-border rounded-2xl overflow-hidden p-[1px]">
+                                    <div className="bg-background rounded-2xl p-6 sm:p-8">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
+                                            <h3 className="text-[18px] font-semibold tracking-tight text-foreground flex items-center gap-3">
+                                                <AlertCircle size={20} className="text-primary"/> Centro de Resposta e Alertas
+                                            </h3>
+                                            <div className="flex gap-3">
+                                                <button onClick={() => setShowNewClient(true)} className="h-10 px-4 rounded-lg bg-secondary border border-border text-[13px] font-medium hover:bg-white/5 inline-flex items-center gap-2 relative group overflow-hidden">
+                                                    <span className="relative z-10"><Users size={14} className="inline mr-1" /> Novo Usuário</span>
+                                                </button>
+                                                <button onClick={() => setShowNewProject(true)} className="h-10 px-5 rounded-lg bg-primary text-primary-foreground font-semibold text-[13px] hover:opacity-90 inline-flex items-center gap-2 shadow-[0_0_15px_rgba(245,168,0,0.15)]">
+                                                    <span>Novo Projeto</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Dynamic Alerts List */}
+                                        <div className="space-y-4">
+                                            {projects.filter(p => (p.preview_status === 'rejected' || p.preview_status === 'pending')).length === 0 ? (
+                                                <div className="text-[14px] text-muted-foreground text-center py-10 border border-dashed border-border/50 rounded-xl bg-secondary/10">
+                                                    <CheckCircle2 size={32} className="mx-auto mb-3 opacity-20 text-green-500" />
+                                                    Não há alertas operacionais pendentes. Todos os projetos estão em fluxo normal.
+                                                </div>
+                                            ) : (
+                                                <div className="grid gap-3">
+                                                    {projects.filter(p => p.preview_status === 'rejected').map(p => (
+                                                        <div key={p.id} className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center justify-between animate-in slide-in-from-top-2">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                                                                    <AlertCircle size={20} className="text-red-500" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-[14px] font-bold text-foreground">{p.name} — Ajustes Solicitados</p>
+                                                                    <p className="text-[12px] text-muted-foreground">O cliente enviou feedback e aguarda novas alterações.</p>
+                                                                </div>
+                                                            </div>
+                                                            <button onClick={() => { setActiveTab('projects'); setExpandedProjectId(p.id); }} className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-[12px] font-bold rounded-lg transition-all">Ver Detalhes</button>
+                                                        </div>
+                                                    ))}
+                                                    {projects.filter(p => p.preview_status === 'pending').map(p => (
+                                                        <div key={p.id} className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between animate-in slide-in-from-top-2">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                                                                    <Clock size={20} className="text-amber-500" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-[14px] font-bold text-foreground">{p.name} — Em Homologação</p>
+                                                                    <p className="text-[12px] text-muted-foreground">Aguardando decisão do cliente há {Math.floor((Date.now() - new Date(p.updated_at).getTime()) / (1000 * 60 * 60 * 24))} dias.</p>
+                                                                </div>
+                                                            </div>
+                                                            <button onClick={() => { setActiveTab('projects'); setExpandedProjectId(p.id); }} className="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-[12px] font-bold rounded-lg transition-all">Ir para Diário</button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="text-[14px] text-muted-foreground text-center py-10 border border-dashed border-border/50 rounded-xl">
-                                    Seus alertas sobre notes não respondidos aparecerão aqui se o volume escalar futuramente. Navegue pelas "Esteiras & Diários" para atualizar o pipeline dos projetos vigentes.
+
+                                {/* Main Activity Chart */}
+                                <div className="bg-card border border-border rounded-2xl p-6 sm:p-8">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <h4 className="text-[15px] font-bold text-foreground flex items-center gap-2">
+                                            <Activity size={18} className="text-primary"/> Intensidade Operacional (Updates)
+                                        </h4>
+                                    </div>
+                                    <div className="h-[240px] w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={[
+                                                { name: 'Seg', val: 2 },
+                                                { name: 'Ter', val: 5 },
+                                                { name: 'Qua', val: 3 },
+                                                { name: 'Qui', val: 8 },
+                                                { name: 'Sex', val: projects.reduce((acc, p) => acc + (p.updates?.length || 0), 0) },
+                                            ]}>
+                                                <defs>
+                                                    <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="oklch(0.78 0.18 80)" stopOpacity={0.3}/>
+                                                        <stop offset="95%" stopColor="oklch(0.78 0.18 80)" stopOpacity={0}/>
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                                <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} />
+                                                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} />
+                                                <RechartsTooltip contentStyle={{ backgroundColor: 'oklch(0.17 0 0)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }} />
+                                                <Area type="monotone" dataKey="val" stroke="oklch(0.78 0.18 80)" fillOpacity={1} fill="url(#colorVal)" strokeWidth={3} />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sidebar Analytics */}
+                            <div className="space-y-6">
+                                <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 flex flex-col items-center">
+                                    <h4 className="text-[13px] font-bold text-muted-foreground uppercase tracking-widest mb-8 self-start">Distribuição por Etapa</h4>
+                                    <div className="h-[200px] w-full mb-6">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={STAGES.map(s => ({
+                                                        name: s.label,
+                                                        value: projects.filter(p => p.current_stage === s.id).length || 0.1
+                                                    }))}
+                                                    innerRadius={60}
+                                                    outerRadius={80}
+                                                    paddingAngle={5}
+                                                    dataKey="value"
+                                                >
+                                                    {STAGES.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={index === 0 ? 'oklch(0.78 0.18 80)' : `rgba(245,168,0,${0.2 + (index * 0.15)})`} />
+                                                    ))}
+                                                </Pie>
+                                                <RechartsTooltip />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div className="space-y-2 w-full">
+                                        {STAGES.map((s, i) => {
+                                            const count = projects.filter(p => p.current_stage === s.id).length;
+                                            return (
+                                                <div key={s.id} className="flex items-center justify-between text-[11px] font-semibold">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: i === 0 ? 'oklch(0.78 0.18 80)' : `rgba(245,168,0,${0.2 + (i * 0.15)})` }} />
+                                                        <span className="text-muted-foreground">{s.label}</span>
+                                                    </div>
+                                                    <span className="text-foreground">{count}</span>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 sm:p-8">
+                                    <h4 className="text-[13px] font-bold text-primary uppercase tracking-widest mb-4">Eficiência de Entrega</h4>
+                                    <p className="text-3xl font-bold text-foreground mb-1">
+                                        {totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0}%
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground leading-relaxed">Projetos que passaram por todas as fases e foram entregues com sucesso.</p>
+                                    <div className="mt-6 w-full bg-border/30 h-1.5 rounded-full overflow-hidden">
+                                        <div className="bg-primary h-full transition-all duration-1000" style={{ width: `${totalProjects > 0 ? (completedProjects / totalProjects) * 100 : 0}%` }} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -474,9 +639,14 @@ export default function AdminPage() {
                                                     }
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <button onClick={() => { setEditingUser(u); setEditUserName(u.name); setEditUserEmail(u.email); setEditUserRole(u.role); setEditUserPassword(''); }} className="inline-flex h-8 items-center justify-center bg-background border border-border hover:border-primary px-3 rounded text-[12px] font-medium transition-all gap-1.5 focus:outline-none focus:ring-1 focus:ring-primary shadow-sm hover:text-primary">
-                                                        <Edit size={12} /> Editar
-                                                    </button>
+                                                    <div className="inline-flex items-center gap-2">
+                                                        <button onClick={() => { setEditingUser(u); setEditUserName(u.name); setEditUserEmail(u.email); setEditUserRole(u.role); setEditUserPassword(''); }} className="inline-flex h-8 items-center justify-center bg-background border border-border hover:border-primary px-3 rounded text-[12px] font-medium transition-all gap-1.5 focus:outline-none focus:ring-1 focus:ring-primary shadow-sm hover:text-primary">
+                                                            <Edit size={12} /> Editar
+                                                        </button>
+                                                        <button onClick={() => { setDeletingUser(u); setDeleteWarning(null); }} className="inline-flex h-8 items-center justify-center bg-background border border-red-500/30 hover:border-red-500 hover:bg-red-500/10 px-3 rounded text-[12px] font-medium transition-all gap-1.5 text-red-400 hover:text-red-400 focus:outline-none focus:ring-1 focus:ring-red-500 shadow-sm">
+                                                            <Trash2 size={12} /> Excluir
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -597,6 +767,105 @@ export default function AdminPage() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            
+            {/* MODAL: Editor de Usuário */}
+            {editingUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                        <div className="flex justify-between items-center p-6 border-b border-border bg-secondary/10">
+                            <h3 className="text-[16px] font-semibold text-foreground">Gestão de Identidade</h3>
+                            <button onClick={() => setEditingUser(null)} className="text-muted-foreground hover:text-foreground bg-background p-1.5 rounded border border-border shadow-sm"><X size={16} /></button>
+                        </div>
+                        <form onSubmit={handleEditUser} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-[11px] font-bold uppercase tracking-wide mb-1.5 text-muted-foreground">Nome Completo</label>
+                                <input required value={editUserName} onChange={e => setEditUserName(e.target.value)} type="text" className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-[14px] text-foreground focus:border-primary outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold uppercase tracking-wide mb-1.5 text-muted-foreground">E-mail</label>
+                                <input required value={editUserEmail} onChange={e => setEditUserEmail(e.target.value)} type="email" className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-[14px] text-foreground focus:border-primary outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold uppercase tracking-wide mb-1.5 text-muted-foreground">Privilégio Administrativo</label>
+                                <select value={editUserRole} onChange={e => setEditUserRole(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-[14px] text-foreground focus:border-primary outline-none font-medium">
+                                    <option value="client">Client Pool / Observador</option>
+                                    <option value="admin">Engenharia / Super Admin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold uppercase tracking-wide mb-1.5 text-primary">Nova Senha (deixe vazio para manter)</label>
+                                <input value={editUserPassword} onChange={e => setEditUserPassword(e.target.value)} type="password" placeholder="••••••••" className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-[14px] text-foreground focus:border-primary outline-none" />
+                            </div>
+                            <div className="pt-6 flex gap-3">
+                                <button type="button" onClick={() => setEditingUser(null)} className="flex-1 h-11 bg-secondary hover:bg-white/5 rounded-lg text-[13px] font-semibold transition-colors">Voltar</button>
+                                <button type="submit" disabled={editUserLoading} className="flex-1 h-11 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg text-[13px] font-semibold transition-colors flex justify-center items-center">
+                                    {editUserLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sincronizar'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: Confirmação de Exclusão de Usuário */}
+            {deletingUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-card border border-red-500/30 rounded-xl w-full max-w-md shadow-[0_0_50px_rgba(239,68,68,0.15)] relative overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-red-500/60" />
+                        <div className="p-6 border-b border-border">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center shrink-0">
+                                    <Trash2 size={18} className="text-red-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-[16px] font-semibold text-foreground">Remoção Permanente</h3>
+                                    <p className="text-[12px] text-muted-foreground">Esta ação não poderá ser desfeita.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            {deleteWarning ? (
+                                <>
+                                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                                        <p className="text-[13px] font-semibold text-red-400 mb-3 flex items-center gap-2">
+                                            <AlertCircle size={15} /> {deleteWarning.message}
+                                        </p>
+                                        <ul className="space-y-1">
+                                            {deleteWarning.projects.map(p => (
+                                                <li key={p.id} className="text-[12px] text-foreground/70 flex items-center gap-2">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                                                    {p.name}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <p className="text-[13px] text-muted-foreground leading-relaxed">
+                                        Confirme abaixo para excluir o usuário <b className="text-foreground">{deletingUser.name}</b> juntamente com todos os projetos e históricos vinculados.
+                                    </p>
+                                    <div className="flex gap-3 pt-2">
+                                        <button onClick={() => { setDeletingUser(null); setDeleteWarning(null); }} className="flex-1 h-11 bg-secondary hover:bg-white/5 rounded-lg text-[13px] font-semibold transition-colors">Cancelar</button>
+                                        <button onClick={() => handleDeleteUser(true)} disabled={deleteLoading} className="flex-1 h-11 bg-red-500 hover:bg-red-600 text-white rounded-lg text-[13px] font-semibold transition-colors flex justify-center items-center gap-2">
+                                            {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Trash2 size={14} /> Excluir Tudo</>}
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-[14px] text-foreground/80 leading-relaxed">
+                                        Deseja remover permanentemente o usuário <b className="text-foreground">{deletingUser.name}</b> ({deletingUser.email})?
+                                    </p>
+                                    <div className="flex gap-3 pt-2">
+                                        <button onClick={() => setDeletingUser(null)} className="flex-1 h-11 bg-secondary hover:bg-white/5 rounded-lg text-[13px] font-semibold transition-colors">Cancelar</button>
+                                        <button onClick={() => handleDeleteUser(false)} disabled={deleteLoading} className="flex-1 h-11 bg-red-500 hover:bg-red-600 text-white rounded-lg text-[13px] font-semibold transition-colors flex justify-center items-center gap-2">
+                                            {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Trash2 size={14} /> Confirmar Exclusão</>}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

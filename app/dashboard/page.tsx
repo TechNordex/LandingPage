@@ -39,6 +39,7 @@ export default function DashboardPage() {
 
     // Welcome popup
     const [showWelcome, setShowWelcome] = useState(false)
+    const [agreedToTerms, setAgreedToTerms] = useState(false)
 
     useEffect(() => {
         fetch('/api/dashboard/project')
@@ -48,8 +49,8 @@ export default function DashboardPage() {
             })
             .then((jsonData) => {
                 setData(jsonData)
-                const hasSeenWelcome = localStorage.getItem('nordex_welcome_seen')
-                if (!hasSeenWelcome && jsonData.project) {
+                // Server-side check — termsAccepted is per-user, not per-browser
+                if (!jsonData.termsAccepted) {
                     setShowWelcome(true)
                     triggerConfetti()
                 }
@@ -68,9 +69,14 @@ export default function DashboardPage() {
         frame()
     }
 
-    const closeWelcome = () => {
+    const closeWelcome = async () => {
         setShowWelcome(false)
-        localStorage.setItem('nordex_welcome_seen', 'true')
+        // Persist acceptance server-side (per-user, not per-browser)
+        try {
+            await fetch('/api/dashboard/accept-terms', { method: 'POST' })
+        } catch {
+            // Non-critical — popup is hidden client-side already
+        }
     }
 
     const startEditingNote = (updateId: string, currentNote: string | null) => {
@@ -488,16 +494,42 @@ export default function DashboardPage() {
                         <h2 className="text-2xl font-bold text-foreground mb-3 tracking-tight">
                             Bem-vindo ao Nordex Client Portal.
                         </h2>
-                        <p className="text-[15px] text-muted-foreground leading-relaxed mb-6">
-                            Olá, <b>{user?.name.split(' ')[0]}</b>! Este é o seu espaço para acompanhar cada detalhe do <b>{project?.name}</b>.
-                            <br /><br />
-                            Aqui você verá o progresso em tempo real, receberá as últimas novidades da equipe e poderá deixar suas observações e feedback diretamente em cada etapa do projeto. Quando uma versão de teste estiver disponível, você também poderá aprová-la ou solicitar ajustes por aqui.
-                        </p>
+                        <div className="text-[14.5px] text-muted-foreground leading-relaxed mb-6 space-y-4">
+                            <p>
+                                Olá, <b>{user?.name.split(' ')[0]}</b>! Este é o seu espaço reservado e seguro para acompanhar o <b>{project?.name}</b>.
+                            </p>
+                            
+                            <div className="p-4 bg-secondary/50 rounded-xl border border-border/50 text-[13px]">
+                                <h3 className="font-bold text-foreground mb-2 flex items-center gap-2">
+                                    <AlertCircle size={15} className="text-primary"/> Termo de Confidencialidade e Sigilo
+                                </h3>
+                                <p className="leading-relaxed opacity-90">
+                                    Ao prosseguir, você concorda expressamente em manter escopo de sigilo sobre metodologias, interfaces, e lógicas apresentadas neste ambiente. A reprodução, engenharia reversa, ou o compartilhamento indevido destes dados estão sujeitos às penalidades previstas na lei de proteção intelectual.
+                                </p>
+                            </div>
+                        </div>
+
+                        <label className="flex items-start gap-3 mb-6 cursor-pointer group">
+                            <div className="relative flex items-center justify-center mt-0.5 shrink-0">
+                                <input 
+                                    type="checkbox" 
+                                    checked={agreedToTerms}
+                                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                    className="peer appearance-none w-5 h-5 border-2 border-border rounded-md checked:bg-primary checked:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer bg-background"
+                                />
+                                <Check size={12} className="absolute text-primary-foreground opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" strokeWidth={4}/>
+                            </div>
+                            <span className="text-[13px] font-medium text-foreground/80 group-hover:text-foreground transition-colors leading-snug select-none">
+                                Eu declaro que li, entendi e concordo integralmente com o Termo de Confidencialidade da plataforma.
+                            </span>
+                        </label>
+
                         <button
                             onClick={closeWelcome}
-                            className="w-full h-11 bg-foreground text-background font-semibold rounded-lg hover:bg-foreground/90 transition-colors shadow-lg"
+                            disabled={!agreedToTerms}
+                            className="w-full h-12 bg-foreground text-background font-semibold text-[14px] rounded-xl transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-foreground/90 disabled:hover:bg-foreground"
                         >
-                            Entrar no Painel
+                            Assinar e Entrar no Painel
                         </button>
                     </div>
                 </div>

@@ -148,13 +148,21 @@ export function Navbar() {
               {link.label}
             </a>
           ))}
-          <a
-            href="#contato"
-            className="mt-2 inline-flex items-center justify-center px-5 py-3 rounded-md bg-primary text-primary-foreground text-sm font-semibold"
-            onClick={(e) => handleScroll(e, "#contato")}
-          >
-            Fale Conosco
-          </a>
+          <div className="flex flex-col gap-3 pt-2">
+            <a
+              href="/login"
+              className="inline-flex items-center justify-center px-5 py-3 rounded-md border border-border text-base font-medium text-foreground hover:bg-white/5 transition-colors"
+            >
+              Entrar
+            </a>
+            <a
+              href="#contato"
+              className="inline-flex items-center justify-center px-5 py-3 rounded-md bg-primary text-primary-foreground text-sm font-semibold"
+              onClick={(e) => handleScroll(e, "#contato")}
+            >
+              Fale Conosco
+            </a>
+          </div>
         </div>
       </div>
     </header>
