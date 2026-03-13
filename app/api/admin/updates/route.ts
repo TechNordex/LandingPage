@@ -9,12 +9,11 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { project_id, stage, title, message } = await req.json()
+        const { project_id, stage, title, message, preview_url } = await req.json()
         if (!project_id || !stage || !title) {
             return NextResponse.json({ error: 'project_id, stage e title são obrigatórios' }, { status: 400 })
         }
 
-        // Insert update AND update the project's current stage in a transaction
         await db.query('BEGIN')
 
         await db.query(
@@ -23,11 +22,25 @@ export async function POST(req: NextRequest) {
             [project_id, stage, title, message || null]
         )
 
-        await db.query(
-            `UPDATE projects SET current_stage = $2, updated_at = now() WHERE id = $1`,
-            [project_id, stage]
-        )
+        // Build the UPDATE query for the project
+        // If a preview_url is provided → reset status to 'pending' (new link needs evaluation)
+        // If preview_url is explicitly empty string → clear it and set status to 'none'
+        const hasNewUrl = preview_url && preview_url.trim() !== ''
+        const clearUrl = preview_url === ''
 
+        let updateQuery = `UPDATE projects SET current_stage = $2, updated_at = now()`
+        const queryParams: (string | number)[] = [project_id, stage]
+
+        if (hasNewUrl) {
+            updateQuery += `, preview_url = $${queryParams.length + 1}, preview_status = 'pending', preview_feedback = NULL`
+            queryParams.push(preview_url.trim())
+        } else if (clearUrl) {
+            updateQuery += `, preview_url = NULL, preview_status = 'none', preview_feedback = NULL`
+        }
+
+        updateQuery += ` WHERE id = $1`
+
+        await db.query(updateQuery, queryParams)
         await db.query('COMMIT')
 
         return NextResponse.json({ success: true }, { status: 201 })
@@ -37,3 +50,4 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Erro ao postar atualização' }, { status: 500 })
     }
 }
+

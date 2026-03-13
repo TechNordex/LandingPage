@@ -1,9 +1,16 @@
-import React from 'react'
+/**
+ * Project Tracker - Vertical Stepper
+ * -------------------------------------------
+ * - Vertical layout so stage names are never clipped
+ * - Animated progress line and step markers with stagger
+ * - Gold + dark palette, minimal and premium feel
+ */
+'use client'
+import React, { useEffect, useState } from 'react'
 import { STAGES } from '@/lib/types'
-import { ClipboardList, Palette, Code2, FlaskConical, Eye, Rocket, CheckCircle2, Clock } from 'lucide-react'
+import { ClipboardList, Palette, Code2, FlaskConical, Eye, Rocket, Check } from 'lucide-react'
 
-// Map string icon names to actual Lucide components
-const iconMap = {
+const iconMap: Record<string, React.ComponentType<{ size?: number }>> = {
     ClipboardList,
     Palette,
     Code2,
@@ -17,86 +24,114 @@ interface ProjectTrackerProps {
 }
 
 export function ProjectTracker({ currentStageId }: ProjectTrackerProps) {
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        // Small delay to trigger stagger animations on mount
+        const t = setTimeout(() => setMounted(true), 50)
+        return () => clearTimeout(t)
+    }, [])
+
     return (
-        <div className="relative pt-4 pb-8">
-            {/* Background Line */}
-            <div className="absolute top-[34px] left-[10%] right-[10%] h-[2px] bg-border md:block hidden" />
+        <div className="flex flex-col gap-0 w-full">
+            {STAGES.map((stage, idx) => {
+                const isCompleted = stage.id < currentStageId
+                const isCurrent = stage.id === currentStageId
+                const isPending = stage.id > currentStageId
+                const IconComponent = iconMap[stage.icon] as React.ComponentType<{ size?: number }>
 
-            {/* Active Line */}
-            <div
-                className="absolute top-[34px] left-[10%] h-[2px] bg-primary md:block hidden transition-all duration-700 ease-in-out"
-                style={{
-                    width: `${Math.max(0, (currentStageId - 1) * (80 / (STAGES.length - 1)))}%`, // 80% is the distance between left 10% and right 10%
-                }}
-            />
+                const isLast = idx === STAGES.length - 1
 
-            <div className="flex flex-col md:flex-row justify-between relative z-10 gap-8 md:gap-0">
-                {STAGES.map((stage) => {
-                    const isCompleted = stage.id < currentStageId
-                    const isCurrent = stage.id === currentStageId
-                    const isPending = stage.id > currentStageId
-                    const IconComponent = iconMap[stage.icon as keyof typeof iconMap]
-
-                    return (
-                        <div key={stage.id} className="flex flex-row md:flex-col items-center md:flex-1 relative group">
-
-                            {/* Vertical line for mobile */}
-                            {stage.id !== STAGES.length && (
-                                <div className="absolute left-[23px] top-[48px] bottom-[-32px] w-[2px] bg-border md:hidden" />
-                            )}
-                            {stage.id < currentStageId && stage.id !== STAGES.length && (
-                                <div className="absolute left-[23px] top-[48px] bottom-[-32px] w-[2px] bg-primary md:hidden" />
-                            )}
-
-                            {/* Node Icon */}
+                return (
+                    <div
+                        key={stage.id}
+                        className="relative flex items-start gap-4"
+                        style={{
+                            opacity: mounted ? 1 : 0,
+                            transform: mounted ? 'translateY(0)' : 'translateY(8px)',
+                            transition: `opacity 0.4s ease ${idx * 80}ms, transform 0.4s ease ${idx * 80}ms`,
+                        }}
+                    >
+                        {/* Left column: node + vertical connector */}
+                        <div className="flex flex-col items-center shrink-0">
+                            {/* Node */}
                             <div
-                                className={`w-12 h-12 rounded-full flex items-center justify-center border-2 shrink-0 transition-colors duration-300 z-10
-                  ${isCompleted ? 'bg-primary border-primary text-primary-foreground' : ''}
-                  ${isCurrent ? 'bg-background border-primary text-primary shadow-[0_0_15px_rgba(245,168,0,0.3)] animate-pulse' : ''}
-                  ${isPending ? 'bg-background border-border text-muted-foreground' : ''}
-                `}
+                                className={[
+                                    'w-9 h-9 rounded-full flex items-center justify-center border-[1.5px] z-10 transition-all duration-500 shrink-0',
+                                    isCompleted
+                                        ? 'bg-primary border-primary text-black'
+                                        : isCurrent
+                                        ? 'bg-card border-primary text-primary shadow-[0_0_14px_rgba(245,168,0,0.3)]'
+                                        : 'bg-background border-border text-muted-foreground/30',
+                                ].join(' ')}
                             >
-                                {isCompleted ? <CheckCircle2 size={24} /> : <IconComponent size={24} />}
+                                {isCompleted ? (
+                                    <Check size={16} strokeWidth={2.5} />
+                                ) : (
+                                    <IconComponent size={15} />
+                                )}
                             </div>
 
-                            {/* Text / Label */}
-                            <div className="ml-6 md:ml-0 md:mt-4 flex flex-col md:items-center w-full">
+                            {/* Vertical connector line */}
+                            {!isLast && (
+                                <div className="w-px flex-1 min-h-[28px] mt-1 relative overflow-hidden">
+                                    {/* Track */}
+                                    <div className="absolute inset-0 bg-border/50" />
+                                    {/* Active fill */}
+                                    <div
+                                        className="absolute top-0 left-0 right-0 bg-primary transition-all duration-700 ease-out"
+                                        style={{
+                                            height: isCompleted ? '100%' : '0%',
+                                        }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right column: text content */}
+                        <div className={`pb-7 ${isLast ? 'pb-0' : ''}`}>
+                            <div className="flex items-center gap-2 mb-0.5">
                                 <span
-                                    className={`text-sm font-semibold mb-1
-                    ${isCurrent ? 'text-primary' : ''}
-                    ${isCompleted ? 'text-foreground' : ''}
-                    ${isPending ? 'text-muted-foreground' : ''}
-                  `}
+                                    className={[
+                                        'text-[13px] font-semibold leading-tight transition-colors duration-300',
+                                        isCompleted
+                                            ? 'text-foreground/70'
+                                            : isCurrent
+                                            ? 'text-foreground'
+                                            : 'text-muted-foreground/40',
+                                    ].join(' ')}
                                 >
-                                    Etapa {stage.id}: {stage.label}
+                                    {stage.label}
                                 </span>
 
-                                {/* Mobile Description */}
-                                <p className="text-xs text-muted-foreground md:hidden mt-1">{stage.desc}</p>
-
-                                {/* Desktop Tooltip (Hover) */}
-                                <div className="absolute top-full mt-2 bg-popover/90 backdrop-blur-sm border border-border text-popover-foreground text-xs p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none hidden md:block whitespace-nowrap z-20">
-                                    {stage.desc}
-                                </div>
+                                {isCurrent && (
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-sm">
+                                        <span className="w-1 h-1 rounded-full bg-primary animate-pulse inline-block" />
+                                        ATUAL
+                                    </span>
+                                )}
+                                {isCompleted && (
+                                    <span className="text-[9px] font-bold uppercase tracking-wide text-green-500/70">
+                                        ✓
+                                    </span>
+                                )}
                             </div>
-
-                            {/* Badges for current/pending */}
-                            {isCurrent && (
-                                <div className="ml-auto md:hidden bg-primary/10 text-primary border border-primary/20 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
-                                    Atual
-                                </div>
-                            )}
-                            {isPending && (
-                                <div className="ml-auto md:hidden text-muted-foreground/50">
-                                    <Clock size={16} />
-                                </div>
-                            )}
-
+                            <p
+                                className={[
+                                    'text-[11px] leading-snug transition-colors duration-300',
+                                    isCurrent
+                                        ? 'text-muted-foreground/70'
+                                        : isCompleted
+                                        ? 'text-muted-foreground/40'
+                                        : 'text-muted-foreground/20',
+                                ].join(' ')}
+                            >
+                                {stage.desc}
+                            </p>
                         </div>
-                    )
-                })}
-            </div>
+                    </div>
+                )
+            })}
         </div>
     )
 }

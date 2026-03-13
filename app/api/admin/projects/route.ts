@@ -54,3 +54,33 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Erro ao criar projeto' }, { status: 500 })
     }
 }
+
+export async function PUT(req: NextRequest) {
+    const session = await getSession()
+    if (!session || session.role !== 'admin') {
+        return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
+    }
+
+    try {
+        const { id, name, description, preview_url } = await req.json()
+        if (!id || !name) {
+            return NextResponse.json({ error: 'id e name são obrigatórios para edição' }, { status: 400 })
+        }
+
+        const result = await db.query(
+            `UPDATE projects 
+             SET name = $1, description = $2, preview_url = $3, updated_at = NOW() 
+             WHERE id = $4 RETURNING *`,
+            [name, description || null, preview_url || null, id]
+        )
+        
+        if (result.rows.length === 0) {
+            return NextResponse.json({ error: 'Projeto não encontrado' }, { status: 404 })
+        }
+        
+        return NextResponse.json({ project: result.rows[0] })
+    } catch (error) {
+        console.error('[admin/projects PUT]', error)
+        return NextResponse.json({ error: 'Erro ao atualizar projeto' }, { status: 500 })
+    }
+}

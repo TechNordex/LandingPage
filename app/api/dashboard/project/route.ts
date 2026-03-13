@@ -25,7 +25,27 @@ export async function GET() {
             user: { name: session.name, email: session.email }
         })
     } catch (error) {
-        console.error('[dashboard/project]', error)
+        console.error('[dashboard/project GET]', error)
         return NextResponse.json({ error: 'Erro ao buscar projeto' }, { status: 500 })
+    }
+}
+
+// Update client notes
+export async function PUT(req: Request) {
+    const session = await getSession()
+    if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+
+    try {
+        const { notes } = await req.json()
+        
+        await db.query(
+            'UPDATE projects SET client_notes = $1 WHERE client_id = $2',
+            [notes || '', session.id]
+        )
+
+        return NextResponse.json({ success: true })
+    } catch (error) {
+        console.error('[dashboard/project PUT]', error)
+        return NextResponse.json({ error: 'Erro ao atualizar anotações' }, { status: 500 })
     }
 }

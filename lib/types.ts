@@ -23,6 +23,8 @@ export interface Project {
   name: string
   description: string | null
   preview_url: string | null
+  preview_status: 'none' | 'pending' | 'approved' | 'rejected'
+  preview_feedback: string | null
   current_stage: number
   created_at: string
   updated_at: string
@@ -35,6 +37,7 @@ export interface ProjectUpdate {
   stage: number
   title: string
   message: string | null
+  client_note?: string | null
   created_at: string
 }
 
