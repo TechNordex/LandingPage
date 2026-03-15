@@ -3,10 +3,10 @@
  */
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { LogOut, Plus, Activity, Send, Loader2, X, Edit, Users, FolderKanban, CheckCircle2, Clock, MessageSquareText, FileEdit, Link as LinkIcon, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown, AlertCircle, Trash2 } from 'lucide-react'
+import { LogOut, Plus, Activity, Send, Loader2, X, Edit, Users, FolderKanban, CheckCircle2, Clock, MessageSquareText, FileEdit, Link as LinkIcon, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown, AlertCircle, Trash2, Search, SlidersHorizontal, Briefcase } from 'lucide-react'
 import type { Project, PortalUser, ProjectUpdate } from '@/lib/types'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts'
 import { STAGES } from '@/lib/types'
@@ -24,6 +24,9 @@ export default function AdminPage() {
     
     // UI states for expanding specific project timelines
     const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null)
+    const [expandedClientId, setExpandedClientId] = useState<string | null>(null)
+    const [projectSearch, setProjectSearch] = useState('')
+    const [projectFilter, setProjectFilter] = useState<'all' | 'alerts' | 'active' | 'done'>('all')
 
     // Modals
     const [showNewClient, setShowNewClient] = useState(false)
@@ -77,6 +80,12 @@ export default function AdminPage() {
                 fetch('/api/admin/projects'),
                 fetch('/api/admin/users')
             ])
+            
+            if (resProj.status === 403 || resUsers.status === 403 || resProj.status === 401 || resUsers.status === 401) {
+                router.push('/login')
+                return
+            }
+
             if (resProj.ok) {
                 const data = await resProj.json()
                 const sortedProjects = data.projects.sort((a: Project, b: Project) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
@@ -402,208 +411,355 @@ export default function AdminPage() {
                     </div>
                 )}
 
-                {activeTab === 'projects' && (
-                    <div className="animate-fade-in max-w-4xl mx-auto space-y-6">
+                {activeTab === 'projects' && (() => {
+                    // --- Derived Data ---
+                    const clientMap = new Map<string, { client: PortalUser | null; clientName: string; clientEmail: string; projects: Project[] }>();
+                    projects.forEach(proj => {
+                        const key = proj.client_id;
+                        if (!clientMap.has(key)) {
+                            const user = users.find(u => u.id === key) || null;
+                            clientMap.set(key, { client: user, clientName: proj.client_name || 'Cliente Desconhecido', clientEmail: proj.client_email || '', projects: [] });
+                        }
+                        clientMap.get(key)!.projects.push(proj);
+                    });
+
+                    // Sort: clients with alerts first, then by most recently updated project
+                    const clientGroups = Array.from(clientMap.values()).sort((a, b) => {
+                        const aAlert = a.projects.some(p => p.preview_status === 'rejected') ? 2 : a.projects.some(p => p.preview_status === 'pending') ? 1 : 0;
+                        const bAlert = b.projects.some(p => p.preview_status === 'rejected') ? 2 : b.projects.some(p => p.preview_status === 'pending') ? 1 : 0;
+                        if (bAlert !== aAlert) return bAlert - aAlert;
+                        const aLatest = Math.max(...a.projects.map(p => new Date(p.updated_at).getTime()));
+                        const bLatest = Math.max(...b.projects.map(p => new Date(p.updated_at).getTime()));
+                        return bLatest - aLatest;
+                    });
+
+                    // Filter by search + status
+                    const filteredGroups = clientGroups.map(g => ({
+                        ...g,
+                        projects: g.projects.filter(p => {
+                            const searchMatch = !projectSearch ||
+                                p.name.toLowerCase().includes(projectSearch.toLowerCase()) ||
+                                g.clientName.toLowerCase().includes(projectSearch.toLowerCase());
+                            const filterMatch =
+                                projectFilter === 'all' ? true :
+                                projectFilter === 'alerts' ? (p.preview_status === 'rejected' || p.preview_status === 'pending') :
+                                projectFilter === 'active' ? p.current_stage < 6 :
+                                p.current_stage === 6;
+                            return searchMatch && filterMatch;
+                        })
+                    })).filter(g => g.projects.length > 0);
+
+                    return (
+                    <div className="animate-fade-in max-w-5xl mx-auto space-y-6">
+                        {/* ── Toolbar ── */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                            <div className="relative flex-1">
+                                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por cliente ou projeto..."
+                                    value={projectSearch}
+                                    onChange={e => setProjectSearch(e.target.value)}
+                                    className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground/40 focus:border-primary outline-none transition-colors"
+                                />
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    <SlidersHorizontal size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
+                                    <select
+                                        value={projectFilter}
+                                        onChange={e => setProjectFilter(e.target.value as any)}
+                                        className="bg-card border border-border rounded-xl pl-9 pr-4 py-2.5 text-[13px] text-foreground focus:border-primary outline-none appearance-none cursor-pointer"
+                                    >
+                                        <option value="all">Todos</option>
+                                        <option value="alerts">Com Alertas</option>
+                                        <option value="active">Em Progresso</option>
+                                        <option value="done">Concluídos</option>
+                                    </select>
+                                </div>
+                                <button onClick={() => setShowNewProject(true)} className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold hover:opacity-90 inline-flex items-center gap-2 shadow-[0_0_15px_rgba(245,168,0,0.15)] whitespace-nowrap">
+                                    <Plus size={15} /> Novo Projeto
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* ── Empty State ── */}
                         {projects.length === 0 ? (
                             <div className="text-center py-24 bg-card border border-border rounded-xl">
                                 <FolderKanban size={32} className="mx-auto text-muted-foreground mb-4 opacity-50" />
                                 <p className="text-[15px] font-medium text-foreground mb-2">A esteira operacional está vazia.</p>
-                                <button onClick={() => setShowNewProject(true)} className="h-10 px-5 rounded-lg bg-primary text-primary-foreground font-semibold text-[13px] hover:opacity-90 inline-flex items-center gap-2 mt-4">
-                                    Novo Projeto
-                                </button>
+                                <button onClick={() => setShowNewProject(true)} className="h-10 px-5 rounded-lg bg-primary text-primary-foreground font-semibold text-[13px] hover:opacity-90 inline-flex items-center gap-2 mt-4">Novo Projeto</button>
+                            </div>
+                        ) : filteredGroups.length === 0 ? (
+                            <div className="text-center py-20 bg-card border border-dashed border-border/50 rounded-2xl">
+                                <Search size={28} className="mx-auto text-muted-foreground mb-3 opacity-30" />
+                                <p className="text-[14px] font-medium text-muted-foreground">Nenhum resultado encontrado.</p>
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-5">
-                                {projects.map(proj => {
-                                    const isExpanded = expandedProjectId === proj.id;
-                                    const ps = proj.preview_status ?? 'none';
+                            <div className="flex flex-col gap-4">
+                                {filteredGroups.map(group => {
+                                    const isClientExpanded = expandedClientId === group.clientName;
+                                    const hasRejected = group.projects.some(p => p.preview_status === 'rejected');
+                                    const hasPending = group.projects.some(p => p.preview_status === 'pending');
+                                    const doneCount = group.projects.filter(p => p.current_stage === 6).length;
+                                    const progressPct = group.projects.length > 0 ? Math.round((doneCount / group.projects.length) * 100) : 0;
+                                    const initials = group.clientName.split(' ').slice(0,2).map((n: string) => n[0]).join('').toUpperCase();
 
                                     return (
-                                    <div key={proj.id} className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg transition-all">
-                                        
-                                        {/* Premium Card Header */}
-                                        <div className="p-6 relative">
-                                            <div className="absolute top-0 right-0 w-64 h-full bg-primary/5 blur-[50px] pointer-events-none" />
-                                            
-                                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
-                                                <div>
-                                                    <div className="flex items-center gap-3 mb-1 flex-wrap">
-                                                        <span className="bg-primary/20 text-primary text-[10px] uppercase font-bold px-2 py-0.5 rounded tracking-widest border border-primary/20">
-                                                            Etapa {proj.current_stage}/6
-                                                        </span>
-                                                        {/* Preview Status Badge */}
-                                                        {ps === 'pending' && (
-                                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400">
-                                                                <Clock size={10} /> Aguardando Avaliação do Cliente
-                                                            </span>
-                                                        )}
-                                                        {ps === 'approved' && (
-                                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border bg-green-500/10 border-green-500/30 text-green-400">
-                                                                <ThumbsUp size={10} /> Entrega Aprovada
-                                                            </span>
-                                                        )}
-                                                        {ps === 'rejected' && (
-                                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border bg-red-500/10 border-red-500/30 text-red-400 animate-pulse">
-                                                                <AlertCircle size={10} /> Ajustes Solicitados — Feedback Disponível
-                                                            </span>
-                                                        )}
-                                                        <h3 className="font-bold text-[20px] tracking-tight text-foreground flex items-center gap-2">
-                                                            {proj.name}
-                                                            <button onClick={() => openEditProjectModal(proj)} className="text-muted-foreground hover:text-primary transition-colors hover:bg-secondary p-1.5 rounded-md" title="Editar Metadados">
-                                                                <FileEdit size={16} />
-                                                            </button>
-                                                        </h3>
+                                        <div key={group.clientName} className={`rounded-2xl overflow-hidden transition-all duration-300 border ${
+                                            hasRejected ? 'border-red-500/30 shadow-[0_0_30px_-8px_rgba(239,68,68,0.15)]' :
+                                            hasPending ? 'border-amber-500/30 shadow-[0_0_30px_-8px_rgba(245,158,11,0.12)]' :
+                                            'border-border'
+                                        }`}>
+
+                                            {/* ── Client Card Header ── */}
+                                            <div
+                                                onClick={() => setExpandedClientId(isClientExpanded ? null : group.clientName)}
+                                                className="w-full text-left bg-card hover:bg-card/80 transition-colors cursor-pointer"
+                                            >
+                                                <div className="p-5 sm:p-6 flex items-center gap-5">
+                                                    {/* Avatar */}
+                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-[15px] font-black tracking-tight ${
+                                                        hasRejected ? 'bg-red-500/20 text-red-400' :
+                                                        hasPending ? 'bg-amber-500/20 text-amber-400' :
+                                                        'bg-primary/15 text-primary'
+                                                    }`}>
+                                                        {initials}
                                                     </div>
 
-                                                    {/* REJECTION FEEDBACK ALERT */}
-                                                    {ps === 'rejected' && proj.preview_feedback && (
-                                                        <div className="mt-3 bg-red-500/5 border border-red-500/20 rounded-xl p-4 animate-in slide-in-from-left-2 duration-500">
-                                                            <div className="flex items-center gap-2 text-red-400 font-bold text-[10px] uppercase tracking-wider mb-1">
-                                                                <MessageSquareText size={12} /> Solicitação de Ajuste do Cliente:
+                                                    {/* Info */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2.5 flex-wrap mb-1">
+                                                            <h3 className="text-[16px] font-bold text-foreground tracking-tight">{group.clientName}</h3>
+                                                            {hasRejected && (
+                                                                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border bg-red-500/10 border-red-500/30 text-red-400 animate-pulse">
+                                                                    <AlertCircle size={8} /> Ajuste Pendente
+                                                                </span>
+                                                            )}
+                                                            {!hasRejected && hasPending && (
+                                                                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400">
+                                                                    <Clock size={8} /> Em Homologação
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-4 text-[11px] text-muted-foreground font-medium">
+                                                            <span className="flex items-center gap-1.5"><Briefcase size={11} /> {group.projects.length} projeto{group.projects.length !== 1 ? 's' : ''}</span>
+                                                            {group.clientEmail && <span className="truncate max-w-[200px]">{group.clientEmail}</span>}
+                                                        </div>
+                                                        {/* Per-client progress bar */}
+                                                        <div className="mt-3 flex items-center gap-3">
+                                                            <div className="flex-1 bg-border/30 h-1 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className="h-full rounded-full transition-all duration-1000"
+                                                                    style={{
+                                                                        width: `${progressPct}%`,
+                                                                        background: progressPct === 100 ? 'oklch(0.72 0.17 145)' : 'oklch(0.78 0.18 80)'
+                                                                    }}
+                                                                />
                                                             </div>
-                                                            <p className="text-[13px] text-foreground font-medium leading-relaxed italic">
-                                                                "{proj.preview_feedback}"
-                                                            </p>
+                                                            <span className="text-[10px] font-bold text-muted-foreground shrink-0">{doneCount}/{group.projects.length} concluído{doneCount !== 1 ? 's' : ''}</span>
                                                         </div>
-                                                    )}
-                                                    
-                                                    <div className="flex items-center gap-4 text-[13px] text-muted-foreground mt-2 font-medium">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <Users size={14} className="text-primary/70" />
-                                                            {proj.client_name}
-                                                        </div>
-                                                        {proj.preview_url && (
-                                                            <>
-                                                                <div className="w-1 h-1 rounded-full bg-border" />
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <LinkIcon size={14} className="text-green-500" />
-                                                                    Link de teste configurado
-                                                                </div>
-                                                            </>
-                                                        )}
                                                     </div>
-                                                </div>
 
-                                                <button 
-                                                    onClick={() => setExpandedProjectId(isExpanded ? null : proj.id)}
-                                                    className="w-full lg:w-auto h-11 px-6 bg-secondary/80 hover:bg-white/5 border border-border rounded-xl text-[13px] font-semibold inline-flex items-center justify-center gap-2 transition-all"
-                                                >
-                                                    {isExpanded ? 'Esconder Diário Operacional' : 'Abrir Linha do Tempo e Diário'}
-                                                    {isExpanded ? <ChevronUp size={16} className="text-primary"/> : <ChevronDown size={16} className="text-primary"/>}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Expanded Timeline View */}
-                                        {isExpanded && (
-                                            <div className="bg-background border-t border-border animate-fade-in overflow-hidden">
-                                                
-                                                {/* Dispatch new update block */}
-                                                <div className="p-6 border-b border-border/50 bg-secondary/10">
-                                                    {isUpdating === proj.id ? (
-                                                        <form onSubmit={(e) => handlePostUpdate(e, proj.id)} className="space-y-4 bg-background p-6 rounded-xl border border-primary/30 shadow-2xl relative">
-                                                            <div className="absolute top-0 left-0 w-2 h-full bg-primary rounded-l-xl" />
-                                                            
-                                                            <div className="flex items-center justify-between">
-                                                                <h4 className="text-[15px] font-semibold text-foreground">Disparar Atualização para {proj.client_name}</h4>
-                                                                <button type="button" onClick={() => setIsUpdating(null)} className="p-1 rounded bg-secondary text-muted-foreground hover:text-foreground"><X size={16} /></button>
-                                                            </div>
-                                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                                                <div className="md:col-span-1">
-                                                                    <label className="text-[11px] font-bold uppercase text-muted-foreground tracking-wider mb-2 block">Selecione Fase</label>
-                                                                    <select value={updateStage} onChange={e => setUpdateStage(Number(e.target.value))} className="w-full bg-card border border-border rounded-md px-3 py-3 text-[13px] text-foreground focus:border-primary outline-none font-semibold">
-                                                                        {STAGES.map(s => <option key={s.id} value={s.id}>Et. {s.id}: {s.label}</option>)}
-                                                                    </select>
-                                                                </div>
-                                                                <div className="md:col-span-3">
-                                                                    <label className="text-[11px] font-bold uppercase text-muted-foreground tracking-wider mb-2 block">Ato / Título (Notificação)</label>
-                                                                    <input type="text" placeholder="Ex: Layout Premium Aprovado" required value={updateTitle} onChange={e => setUpdateTitle(e.target.value)} className="w-full bg-card border border-border rounded-md px-3 py-3 text-[13px] text-foreground focus:border-primary outline-none font-medium" />
-                                                                </div>
-                                                            </div>
-                                                            
-                                                            <div>
-                                                                <label className="text-[11px] font-bold uppercase text-muted-foreground tracking-wider mb-2 block">Mensagem Estruturada (Opcional)</label>
-                                                                <textarea placeholder="Relate o que foi finalizado e quais são as orientações..." rows={3} value={updateMessage} onChange={e => setUpdateMessage(e.target.value)} className="w-full bg-card border border-border rounded-md px-3 py-3 text-[13px] resize-y text-foreground focus:border-primary outline-none placeholder:text-muted-foreground/40" />
-                                                            </div>
-
-                                                            <div className="bg-secondary/30 p-4 rounded-lg border border-border/50">
-                                                                <label className="text-[11px] font-bold uppercase text-primary tracking-wider mb-2 flex items-center gap-2">
-                                                                    <LinkIcon size={12}/> Link de Homologação (Injetar Automático)
-                                                                </label>
-                                                                <p className="text-[11px] text-muted-foreground mb-3 leading-relaxed">
-                                                                    Se você inserir uma url aqui, o botão principal do *Dashboard do Cliente* e o registro dele será imediatamente substituído para este novo link. Deixe vazio para manter a URL atual do projeto.
-                                                                </p>
-                                                                <input type="url" placeholder={'Atual: ' + (proj.preview_url || 'Nenhuma')} value={updatePreviewUrl} onChange={e => setUpdatePreviewUrl(e.target.value)} className="w-full bg-background border border-border rounded-md px-3 py-2.5 text-[13px] text-foreground focus:border-primary outline-none" />
-                                                            </div>
-                                                            
-                                                            <div className="flex justify-end pt-2">
-                                                                <button type="submit" className="h-11 px-8 bg-primary text-primary-foreground rounded-lg text-[13px] font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-[0_0_20px_rgba(245,168,0,0.2)]">
-                                                                    <Send size={16} /> Enviar Atualização para a Nuvem
-                                                                </button>
-                                                            </div>
-                                                        </form>
-                                                    ) : (
-                                                        <button onClick={() => { setIsUpdating(proj.id); setUpdateStage(proj.current_stage); setUpdatePreviewUrl(''); }} className="w-full h-12 flex items-center justify-center gap-2 bg-background border border-dashed border-primary/50 text-foreground hover:bg-secondary/50 rounded-xl transition-all text-[14px] font-semibold">
-                                                            <Plus size={18} className="text-primary"/> Criar Nova Atualização de Pipeline
+                                                    {/* Right: quick actions + chevron */}
+                                                    <div className="flex items-center gap-3 shrink-0">
+                                                        <button
+                                                            onClick={e => { e.stopPropagation(); setNewProjectClientId(group.client?.id || ''); setShowNewProject(true); }}
+                                                            className="h-9 px-3 bg-secondary/80 hover:bg-primary hover:text-primary-foreground border border-border hover:border-primary rounded-lg text-[12px] font-semibold inline-flex items-center gap-1.5 transition-all"
+                                                            title="Novo Projeto para este cliente"
+                                                        >
+                                                            <Plus size={13} />
+                                                            <span className="hidden sm:inline">Projeto</span>
                                                         </button>
-                                                    )}
+                                                        <div className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all ${
+                                                            isClientExpanded ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-background border-border text-muted-foreground'
+                                                        }`}>
+                                                            {isClientExpanded ? <ChevronUp size={15}/> : <ChevronDown size={15}/>}
+                                                        </div>
+                                                    </div>
                                                 </div>
+                                            </div>
 
-                                                {/* Mirror Timeline Feed */}
-                                                <div className="p-8 px-8 sm:px-12 bg-background">
-                                                    {(() => {
-                                                        const pUpdates = proj.updates || []; // Aggregated via SQL GET route
-                                                        if (pUpdates.length === 0) return <p className="text-[13px] text-muted-foreground text-center py-6">Este projeto ainda não recebeu nenhuma atualização estrutural na pipeline.</p>;
-                                                        
+                                            {/* ── Expanded: Projects list ── */}
+                                            {isClientExpanded && (
+                                                <div className="border-t border-border/50 bg-background/50 p-4 sm:p-5 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                                    {group.projects.map(proj => {
+                                                        const isExpanded = expandedProjectId === proj.id;
+                                                        const ps = proj.preview_status ?? 'none';
+
                                                         return (
-                                                            <div className="relative border-l-2 border-border/50 ml-4 space-y-12 pb-6">
-                                                                {pUpdates.map((upd: any) => (
-                                                                    <div key={upd.id} className="relative pl-8 group">
-                                                                        <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-card border-[3px] border-primary shadow-[0_0_10px_rgba(245,168,0,0.4)]" />
-                                                                        
-                                                                        <div className="flex items-center justify-between mb-2">
-                                                                            <span className="text-[11px] font-bold text-primary tracking-widest uppercase bg-primary/10 px-2 py-0.5 rounded-sm">
-                                                                                Etapa Atualizada {upd.stage}
+                                                        <div key={proj.id} className="bg-card border border-border/70 rounded-2xl overflow-hidden shadow-md transition-all">
+                                                            {/* Project Card Header */}
+                                                            <div className="p-5 relative">
+                                                                <div className="absolute top-0 right-0 w-48 h-full bg-primary/5 blur-[40px] pointer-events-none" />
+                                                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
+                                                                    <div className="space-y-1.5 flex-1 pr-4">
+                                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                                            <span className="bg-primary/20 text-primary text-[9px] uppercase font-black px-2 py-0.5 rounded-sm tracking-widest border border-primary/20">
+                                                                                Etapa {proj.current_stage}/6
                                                                             </span>
-                                                                            <span className="text-[12px] font-medium text-muted-foreground">
-                                                                                {format(new Date(upd.created_at), "dd 'de' MMM 'às' HH:mm", { locale: ptBR })}
-                                                                            </span>
+                                                                            {ps === 'pending' && (
+                                                                                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400">
+                                                                                    <Clock size={9} /> Aguardando Avaliação
+                                                                                </span>
+                                                                            )}
+                                                                            {ps === 'approved' && (
+                                                                                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border bg-green-500/10 border-green-500/30 text-green-400">
+                                                                                    <ThumbsUp size={9} /> Aprovado
+                                                                                </span>
+                                                                            )}
+                                                                            {ps === 'rejected' && (
+                                                                                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border bg-red-500/10 border-red-500/30 text-red-400 animate-pulse">
+                                                                                    <AlertCircle size={9} /> Ajustes Solicitados
+                                                                                </span>
+                                                                            )}
                                                                         </div>
-                                                                        <h4 className="text-[16px] font-semibold text-foreground mb-2">{upd.title}</h4>
-                                                                        {upd.message && <div className="text-[14px] text-muted-foreground/90 leading-relaxed bg-secondary/30 p-3 rounded-lg border border-border">{upd.message}</div>}
-
-                                                                        {/* The Client Note Context */}
-                                                                        <div className="mt-4 pt-4 border-t border-border/30">
-                                                                            {upd.client_note ? (
-                                                                                <div className="bg-card border border-primary/30 rounded-xl p-5 shadow-sm relative">
-                                                                                     <div className="absolute -top-3 left-4 bg-background border border-primary/30 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-primary flex items-center gap-1.5">
-                                                                                        <MessageSquareText size={12}/> Resposta do Cliente
-                                                                                     </div>
-                                                                                    <p className="text-[14px] text-foreground/90 leading-relaxed whitespace-pre-wrap mt-2 font-medium">
-                                                                                        {upd.client_note}
-                                                                                    </p>
-                                                                                </div>
+                                                                        <h3 className="font-bold text-[18px] tracking-tight text-foreground flex items-center gap-2">
+                                                                            {proj.name}
+                                                                            <button onClick={() => openEditProjectModal(proj)} className="text-muted-foreground hover:text-primary transition-colors hover:bg-secondary p-1 rounded-md" title="Editar Metadados">
+                                                                                <FileEdit size={14} />
+                                                                            </button>
+                                                                        </h3>
+                                                                        {ps === 'rejected' && proj.preview_feedback && (
+                                                                            <div className="mt-2 bg-red-500/5 border border-red-500/20 rounded-lg p-3 animate-in slide-in-from-left-2 duration-500 w-fit">
+                                                                                <div className="flex items-center gap-1.5 text-red-400 font-bold text-[9px] uppercase tracking-wider mb-1"><MessageSquareText size={10} /> Feedback do Cliente:</div>
+                                                                                <p className="text-[12px] text-foreground font-medium leading-relaxed italic">"{proj.preview_feedback}"</p>
+                                                                            </div>
+                                                                        )}
+                                                                        <div className="flex items-center gap-3 text-[12px] text-muted-foreground font-medium pt-1">
+                                                                            {proj.preview_url ? (
+                                                                                <span className="flex items-center gap-1.5"><LinkIcon size={12} className="text-green-500" /> Link de teste configurado</span>
                                                                             ) : (
-                                                                                <div className="inline-flex items-center gap-2 text-[12px] font-medium text-muted-foreground italic px-3 py-2 bg-secondary/20 rounded-lg">
-                                                                                    <Clock size={14} className="opacity-50"/> Cliente ainda não mandou anotações para este update.
-                                                                                </div>
+                                                                                <span className="text-muted-foreground/60">Sem link de visualização</span>
                                                                             )}
                                                                         </div>
                                                                     </div>
-                                                                ))}
+                                                                    <button
+                                                                        onClick={() => setExpandedProjectId(isExpanded ? null : proj.id)}
+                                                                        className="w-full lg:w-auto h-10 px-5 bg-secondary/80 hover:bg-white/5 border border-border rounded-xl text-[12px] font-semibold inline-flex items-center justify-center gap-2 transition-all mt-3 lg:mt-0"
+                                                                    >
+                                                                        {isExpanded ? 'Esconder Diário' : 'Abrir Linha do Tempo'}
+                                                                        {isExpanded ? <ChevronUp size={14} className="text-primary"/> : <ChevronDown size={14} className="text-primary"/>}
+                                                                    </button>
+                                                                </div>
                                                             </div>
-                                                        )
-                                                    })()}
+
+                                                            {/* Expanded Timeline View */}
+                                                            {isExpanded && (
+                                                                <div className="bg-background border-t border-border animate-fade-in overflow-hidden">
+                                                                    
+                                                                    {/* Dispatch new update block */}
+                                                                    <div className="p-5 sm:p-6 border-b border-border/50 bg-secondary/10">
+                                                                        {isUpdating === proj.id ? (
+                                                                            <form onSubmit={(e) => handlePostUpdate(e, proj.id)} className="space-y-4 bg-background p-5 sm:p-6 rounded-xl border border-primary/30 shadow-2xl relative">
+                                                                                <div className="absolute top-0 left-0 w-2 h-full bg-primary rounded-l-xl" />
+                                                                                
+                                                                                <div className="flex items-center justify-between">
+                                                                                    <h4 className="text-[14px] sm:text-[15px] font-semibold text-foreground">Disparar Atualização para o Cliente</h4>
+                                                                                    <button type="button" onClick={() => setIsUpdating(null)} className="p-1 rounded bg-secondary text-muted-foreground hover:text-foreground"><X size={16} /></button>
+                                                                                </div>
+                                                                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                                                                    <div className="md:col-span-1">
+                                                                                        <label className="text-[11px] font-bold uppercase text-muted-foreground tracking-wider mb-2 block">Selecione Fase</label>
+                                                                                        <select value={updateStage} onChange={e => setUpdateStage(Number(e.target.value))} className="w-full bg-card border border-border rounded-md px-3 py-2.5 text-[13px] text-foreground focus:border-primary outline-none font-semibold">
+                                                                                            {STAGES.map(s => <option key={s.id} value={s.id}>Et. {s.id}: {s.label}</option>)}
+                                                                                        </select>
+                                                                                    </div>
+                                                                                    <div className="md:col-span-3">
+                                                                                        <label className="text-[11px] font-bold uppercase text-muted-foreground tracking-wider mb-2 block">Ato / Título (Notificação)</label>
+                                                                                        <input type="text" placeholder="Ex: Layout Premium Aprovado" required value={updateTitle} onChange={e => setUpdateTitle(e.target.value)} className="w-full bg-card border border-border rounded-md px-3 py-2.5 text-[13px] text-foreground focus:border-primary outline-none font-medium" />
+                                                                                    </div>
+                                                                                </div>
+                                                                                
+                                                                                <div>
+                                                                                    <label className="text-[11px] font-bold uppercase text-muted-foreground tracking-wider mb-2 block">Mensagem Estruturada (Opcional)</label>
+                                                                                    <textarea placeholder="Relate o que foi finalizado e quais são as orientações..." rows={3} value={updateMessage} onChange={e => setUpdateMessage(e.target.value)} className="w-full bg-card border border-border rounded-md px-3 py-2.5 text-[13px] resize-y text-foreground focus:border-primary outline-none placeholder:text-muted-foreground/40" />
+                                                                                </div>
+
+                                                                                <div className="bg-secondary/30 p-4 rounded-lg border border-border/50">
+                                                                                    <label className="text-[11px] font-bold uppercase text-primary tracking-wider mb-2 flex items-center gap-2">
+                                                                                        <LinkIcon size={12}/> Link de Homologação (Injetar Automático)
+                                                                                    </label>
+                                                                                    <p className="text-[11px] text-muted-foreground mb-3 leading-relaxed">
+                                                                                        Se você inserir uma url aqui, o botão principal do *Dashboard do Cliente* e o registro dele será imediatamente substituído para este novo link. Deixe vazio para manter a URL atual do projeto.
+                                                                                    </p>
+                                                                                    <input type="url" placeholder={'Atual: ' + (proj.preview_url || 'Nenhuma')} value={updatePreviewUrl} onChange={e => setUpdatePreviewUrl(e.target.value)} className="w-full bg-background border border-border rounded-md px-3 py-2.5 text-[13px] text-foreground focus:border-primary outline-none" />
+                                                                                </div>
+                                                                                
+                                                                                <div className="flex justify-end pt-2">
+                                                                                    <button type="submit" className="h-10 px-6 sm:h-11 sm:px-8 bg-primary text-primary-foreground rounded-lg text-[12px] sm:text-[13px] font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-[0_0_20px_rgba(245,168,0,0.2)]">
+                                                                                        <Send size={15} /> Enviar Atualização para a Nuvem
+                                                                                    </button>
+                                                                                </div>
+                                                                            </form>
+                                                                        ) : (
+                                                                            <button onClick={() => { setIsUpdating(proj.id); setUpdateStage(proj.current_stage); setUpdatePreviewUrl(''); }} className="w-full h-11 flex items-center justify-center gap-2 bg-background border border-dashed border-primary/50 text-foreground hover:bg-secondary/50 rounded-xl transition-all text-[13px] font-semibold">
+                                                                                <Plus size={16} className="text-primary"/> Criar Nova Atualização de Pipeline
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {/* Mirror Timeline Feed */}
+                                                                    <div className="p-6 px-6 sm:px-10 bg-background">
+                                                                        {(() => {
+                                                                            const pUpdates = proj.updates || []; // Aggregated via SQL GET route
+                                                                            if (pUpdates.length === 0) return <p className="text-[13px] text-muted-foreground text-center py-6">Este projeto ainda não recebeu nenhuma atualização estrutural na pipeline.</p>;
+                                                                            
+                                                                            return (
+                                                                                <div className="relative border-l-2 border-border/50 ml-3 space-y-10 pb-4">
+                                                                                    {pUpdates.map((upd: any) => (
+                                                                                        <div key={upd.id} className="relative pl-7 group">
+                                                                                            <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-card border-[3px] border-primary shadow-[0_0_10px_rgba(245,168,0,0.4)]" />
+                                                                                            
+                                                                                            <div className="flex items-center justify-between mb-2">
+                                                                                                <span className="text-[10px] sm:text-[11px] font-bold text-primary tracking-widest uppercase bg-primary/10 px-2 py-0.5 rounded-sm">
+                                                                                                    Etapa {upd.stage}
+                                                                                                </span>
+                                                                                                <span className="text-[11px] sm:text-[12px] font-medium text-muted-foreground">
+                                                                                                    {format(new Date(upd.created_at), "dd 'de' MMM 'às' HH:mm", { locale: ptBR })}
+                                                                                                </span>
+                                                                                            </div>
+                                                                                            <h4 className="text-[15px] sm:text-[16px] font-semibold text-foreground mb-2">{upd.title}</h4>
+                                                                                            {upd.message && <div className="text-[13px] sm:text-[14px] text-muted-foreground/90 leading-relaxed bg-secondary/30 p-3 rounded-lg border border-border">{upd.message}</div>}
+
+                                                                                            {/* The Client Note Context */}
+                                                                                            <div className="mt-4 pt-4 border-t border-border/30">
+                                                                                                {upd.client_note ? (
+                                                                                                    <div className="bg-card border border-primary/30 rounded-xl p-4 sm:p-5 shadow-sm relative">
+                                                                                                        <div className="absolute -top-3 left-4 bg-background border border-primary/30 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest text-primary flex items-center gap-1.5">
+                                                                                                            <MessageSquareText size={11}/> Resposta do Cliente
+                                                                                                        </div>
+                                                                                                        <p className="text-[13px] sm:text-[14px] text-foreground/90 leading-relaxed whitespace-pre-wrap mt-2 font-medium">
+                                                                                                            {upd.client_note}
+                                                                                                        </p>
+                                                                                                    </div>
+                                                                                                ) : (
+                                                                                                    <div className="inline-flex items-center gap-2 text-[11px] sm:text-[12px] font-medium text-muted-foreground italic px-3 py-2 bg-secondary/20 rounded-lg">
+                                                                                                        <Clock size={13} className="opacity-50"/> Cliente ainda não mandou anotações para este update.
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )
+                                                                        })()}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        );
+                                                    })}
                                                 </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    )
+                                            )}
+                                        </div>
+                                    );
                                 })}
                             </div>
                         )}
                     </div>
-                )}
+                    );
+                })()}
 
                 {activeTab === 'users' && (
                      // Users Tab - keeping minimal and clean like before but with uniform style

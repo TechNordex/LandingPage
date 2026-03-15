@@ -21,11 +21,12 @@ import confetti from 'canvas-confetti'
 export default function DashboardPage() {
     const router = useRouter()
     const [data, setData] = useState<{
-        project: Project | null
-        updates: ProjectUpdate[]
+        projects: Project[]
+        allUpdates: ProjectUpdate[]
         user?: { name: string; email: string }
     } | null>(null)
     const [loading, setLoading] = useState(true)
+    const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
 
     // Per-update note editing
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
@@ -49,6 +50,9 @@ export default function DashboardPage() {
             })
             .then((jsonData) => {
                 setData(jsonData)
+                if (jsonData.projects && jsonData.projects.length > 0) {
+                    setActiveProjectId(jsonData.projects[0].id)
+                }
                 // Server-side check — termsAccepted is per-user, not per-browser
                 if (!jsonData.termsAccepted) {
                     setShowWelcome(true)
@@ -92,10 +96,10 @@ export default function DashboardPage() {
     const saveNote = async (updateId: string) => {
         if (!data) return
         setSavingNoteId(updateId)
-        const previousUpdates = [...data.updates]
+        const previousUpdates = [...data.allUpdates]
         setData({
             ...data,
-            updates: data.updates.map(u => u.id === updateId ? { ...u, client_note: tempNoteValue } : u)
+            allUpdates: data.allUpdates.map(u => u.id === updateId ? { ...u, client_note: tempNoteValue } : u)
         })
         setEditingNoteId(null)
         try {
@@ -106,14 +110,16 @@ export default function DashboardPage() {
             })
             if (!res.ok) throw new Error('Failed')
         } catch {
-            setData({ ...data, updates: previousUpdates })
+            setData({ ...data, allUpdates: previousUpdates })
         } finally {
             setSavingNoteId(null)
         }
     }
 
     const submitPreviewDecision = async (decision: 'approved' | 'rejected') => {
-        if (!data?.project) return
+        if (!data || !activeProjectId) return
+        const activeProject = data.projects.find(p => p.id === activeProjectId)
+        if (!activeProject) return
         
         if (decision === 'rejected' && !showRejectionForm) {
             setShowRejectionForm(true)
@@ -126,14 +132,14 @@ export default function DashboardPage() {
 
         setApprovingStatus(decision)
         // Optimistic update locally
-        const prev = { ...data.project }
+        const previousProjects = [...data.projects]
         setData({ 
             ...data, 
-            project: { 
-                ...data.project, 
-                preview_status: decision,
-                preview_feedback: decision === 'rejected' ? rejectionFeedback : null
-            } 
+            projects: data.projects.map(p => 
+                p.id === activeProjectId 
+                    ? { ...p, preview_status: decision, preview_feedback: decision === 'rejected' ? rejectionFeedback : null }
+                    : p
+            )
         })
         setShowRejectionForm(false)
 
@@ -149,7 +155,7 @@ export default function DashboardPage() {
             if (!res.ok) throw new Error('Failed')
         } catch {
             // Rollback
-            setData({ ...data, project: prev })
+            setData({ ...data, projects: previousProjects })
         } finally {
             setApprovingStatus(null)
         }
@@ -168,7 +174,9 @@ export default function DashboardPage() {
         )
     }
 
-    const { project, updates, user } = data || {}
+    const { projects, allUpdates, user } = data || {}
+    const project = projects?.find(p => p.id === activeProjectId) || null
+    const updates = allUpdates?.filter(u => u.project_id === activeProjectId) || []
 
     // Derived preview state
     const status = project?.preview_status ?? 'none'
@@ -183,11 +191,12 @@ export default function DashboardPage() {
                         <Image
                             src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png"
                             alt="Nordex Tech"
-                            width={110}
-                            height={30}
-                            className="h-6 w-auto opacity-90"
+                            width={160}
+                            height={44}
+                            className="h-8 sm:h-10 w-auto opacity-100"
+                            priority
                         />
-                        <div className="h-4 w-px bg-border hidden sm:block" />
+                        <div className="h-6 w-px bg-border hidden sm:block mx-1" />
                         <span className="hidden sm:inline-block text-[13px] font-medium text-muted-foreground tracking-wide uppercase">
                             Portal do Cliente
                         </span>
@@ -228,6 +237,26 @@ export default function DashboardPage() {
                     </div>
                 ) : (
                     <>
+                        {/* Project Switcher UI (if more than 1 project) */}
+                        {projects && projects.length > 1 && (
+                            <div className="flex flex-wrap gap-3 mb-8 animate-fade-in">
+                                {projects.map(p => (
+                                    <button
+                                        key={p.id}
+                                        onClick={() => setActiveProjectId(p.id)}
+                                        className={`px-5 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-300 flex items-center gap-2 border ${
+                                            activeProjectId === p.id 
+                                            ? 'bg-primary/10 border-primary/30 text-primary shadow-[0_0_15px_rgba(245,168,0,0.15)]' 
+                                            : 'bg-card border-border hover:border-border/80 text-muted-foreground hover:text-foreground'
+                                        }`}
+                                    >
+                                        <div className={`w-2 h-2 rounded-full transition-colors ${activeProjectId === p.id ? 'bg-primary animate-pulse-slow shadow-[0_0_8px_rgba(245,168,0,0.8)]' : 'bg-muted-foreground/30'}`} />
+                                        {p.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
                         {/* Top Header Block */}
                         <div className="mb-8 animate-fade-in">
                             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">

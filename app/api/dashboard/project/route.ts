@@ -13,21 +13,23 @@ export async function GET() {
         )
         const user = userResult.rows[0]
 
-        const project = await db.query(
-            'SELECT * FROM projects WHERE client_id = $1',
+        const projects = await db.query(
+            'SELECT * FROM projects WHERE client_id = $1 ORDER BY updated_at DESC',
             [session.id]
         )
 
-        const updates = project.rows[0]
-            ? await db.query(
-                'SELECT * FROM project_updates WHERE project_id = $1 ORDER BY created_at DESC',
-                [project.rows[0].id]
+        let updates = { rows: [] as any[] }
+        if (projects.rows.length > 0) {
+            const projectIds = projects.rows.map(p => p.id)
+            updates = await db.query(
+                'SELECT * FROM project_updates WHERE project_id = ANY($1) ORDER BY created_at DESC',
+                [projectIds]
             )
-            : { rows: [] }
+        }
 
         return NextResponse.json({
-            project: project.rows[0] ?? null,
-            updates: updates.rows,
+            projects: projects.rows,
+            allUpdates: updates.rows,
             user: { name: user.name, email: user.email },
             termsAccepted: !!user.terms_accepted_at,
         })
