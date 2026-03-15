@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server"
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy init resend to avoid build-time crashes if key is missing
+const getResend = () => new Resend(process.env.RESEND_API_KEY || 're_config_placeholder')
 
 export async function POST(request: Request) {
+  const resend = getResend()
   try {
     const body = await request.json()
     const { name, whatsapp, challenge, teamSize } = body

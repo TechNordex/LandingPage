@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyJWT, COOKIE_NAME } from '@/lib/jwt'
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
     const { pathname } = req.nextUrl
     const token = req.cookies.get(COOKIE_NAME)?.value
     const session = token ? await verifyJWT(token) : null

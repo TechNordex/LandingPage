@@ -204,8 +204,15 @@ export default function AdminPage() {
             <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Image src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png" alt="Nordex" width={120} height={40} className="h-6 w-auto opacity-90" />
-                        <div className="h-4 w-px bg-border hidden sm:block" />
+                        <Image 
+                            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png" 
+                            alt="Nordex" 
+                            width={160} 
+                            height={44} 
+                            className="h-8 sm:h-9 w-auto opacity-100" 
+                            priority
+                        />
+                        <div className="h-6 w-px bg-border hidden sm:block mx-1" />
                         <span className="bg-primary/10 text-primary text-[11px] font-bold px-2 py-0.5 border border-primary/20 uppercase tracking-widest rounded-sm">ADMIN PANEL</span>
                     </div>
                     <button onClick={handleLogout} className="flex flex-col text-right hover:text-primary transition-colors">
