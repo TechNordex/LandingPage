@@ -7,6 +7,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
     LogOut, ExternalLink, Loader2, Link as LinkIcon,
     FileText, Activity, Info, MessageSquareText,
@@ -25,6 +26,7 @@ export default function DashboardPage() {
         projects: Project[]
         allUpdates: ProjectUpdate[]
         user?: { name: string; email: string; avatar_url?: string }
+        tourCompleted?: boolean
     } | null>(null)
     const [loading, setLoading] = useState(true)
     const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
@@ -42,6 +44,9 @@ export default function DashboardPage() {
     const [approvingUpdateId, setApprovingUpdateId] = useState<string | null>(null)
     const [showUpdateRejectionFormId, setShowUpdateRejectionFormId] = useState<string | null>(null)
     const [updateRejectionFeedback, setUpdateRejectionFeedback] = useState('')
+    
+    // Squad Hover state
+    const [hoveredMemberId, setHoveredMemberId] = useState<string | null>(null)
 
     useEffect(() => {
         fetch('/api/dashboard/project')
@@ -266,21 +271,23 @@ export default function DashboardPage() {
                     <>
                         {/* Project Switcher UI (if more than 1 project) */}
                         {projects && projects.length > 1 && (
-                            <div className="flex flex-wrap gap-3 mb-8 animate-fade-in">
-                                {projects.map(p => (
-                                    <button
-                                        key={p.id}
-                                        onClick={() => setActiveProjectId(p.id)}
-                                        className={`px-5 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-300 flex items-center gap-2 border ${
-                                            activeProjectId === p.id 
-                                            ? 'bg-primary/10 border-primary/30 text-primary shadow-[0_0_15px_rgba(245,168,0,0.15)]' 
-                                            : 'bg-card border-border hover:border-border/80 text-muted-foreground hover:text-foreground'
-                                        }`}
-                                    >
-                                        <div className={`w-2 h-2 rounded-full transition-colors ${activeProjectId === p.id ? 'bg-primary animate-pulse-slow shadow-[0_0_8px_rgba(245,168,0,0.8)]' : 'bg-muted-foreground/30'}`} />
-                                        {p.name}
-                                    </button>
-                                ))}
+                            <div className="flex items-center gap-3 mb-8 animate-fade-in overflow-x-auto no-scrollbar scroll-smooth pb-2">
+                                <div className="flex gap-3 min-w-max">
+                                    {projects.map(p => (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => setActiveProjectId(p.id)}
+                                            className={`px-5 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-300 flex items-center gap-2 border ${
+                                                activeProjectId === p.id 
+                                                ? 'bg-primary/10 border-primary/30 text-primary shadow-[0_0_15px_rgba(245,168,0,0.15)]' 
+                                                : 'bg-card border-border hover:border-border/80 text-muted-foreground hover:text-foreground'
+                                            }`}
+                                        >
+                                            <div className={`w-2 h-2 rounded-full transition-colors ${activeProjectId === p.id ? 'bg-primary animate-pulse-slow shadow-[0_0_8px_rgba(245,168,0,0.8)]' : 'bg-muted-foreground/30'}`} />
+                                            {p.name}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
@@ -288,7 +295,7 @@ export default function DashboardPage() {
                         <div className="mb-8 animate-fade-in">
                             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                                 <div>
-                                    <h1 className="text-3xl font-semibold tracking-tight text-foreground mb-2">
+                                    <h1 id="tour-welcome" className="text-3xl font-semibold tracking-tight text-foreground mb-2">
                                         {project.name}
                                     </h1>
                                     {project.description && (
@@ -333,24 +340,74 @@ export default function DashboardPage() {
                                     
                                     {/* Squad visibility for client */}
                                     {project.squad && project.squad.length > 0 && (
-                                        <div id="tour-squad" className="mt-6 flex flex-col gap-2">
-                                            <span className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                        <div id="tour-squad" className="mt-8 flex flex-col gap-3">
+                                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                                                 <Users size={12} /> Squad de Especialistas
                                             </span>
-                                            <div className="flex flex-wrap gap-4">
+                                            <div className="flex flex-wrap gap-3 sm:gap-4">
                                                 {project.squad.map(member => (
-                                                    <div key={member.id} className="flex items-center gap-3 bg-secondary/30 border border-border/50 rounded-2xl px-4 py-2 hover:bg-secondary/50 transition-all group">
-                                                        <div className="w-10 h-10 rounded-full bg-background border border-border overflow-hidden shrink-0 aspect-square">
-                                                            {member.avatar_url ? (
-                                                                <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center text-primary font-bold">{member.name.charAt(0)}</div>
+                                                    <div 
+                                                        key={member.id} 
+                                                        className="relative"
+                                                        onMouseEnter={() => setHoveredMemberId(member.id)}
+                                                        onMouseLeave={() => setHoveredMemberId(null)}
+                                                    >
+                                                        <div className="flex items-center gap-3 bg-secondary/30 border border-border/50 rounded-2xl px-4 py-2.5 hover:bg-secondary/50 transition-all cursor-help group shadow-sm">
+                                                            <div className="w-10 h-10 rounded-full bg-background border border-border overflow-hidden shrink-0 aspect-square">
+                                                                {member.avatar_url ? (
+                                                                    <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center text-primary font-bold">{member.name.charAt(0)}</div>
+                                                                )}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="text-[13px] font-bold text-foreground leading-none truncate">{member.name}</p>
+                                                                <p className="text-[10px] text-muted-foreground mt-1 font-medium truncate">{member.position || 'Especialista'}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Bio Popover */}
+                                                        <AnimatePresence>
+                                                            {hoveredMemberId === member.id && member.bio && (
+                                                                <motion.div
+                                                                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                                    className="absolute bottom-full left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 mb-4 z-50 w-[280px] sm:w-[320px] pointer-events-none"
+                                                                >
+                                                                    <div className="bg-card/95 backdrop-blur-xl border border-primary/20 p-5 rounded-2xl shadow-2xl overflow-hidden relative">
+                                                                        {/* Background Highlight */}
+                                                                        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-3xl -mr-8 -mt-8" />
+                                                                        
+                                                                        <div className="relative z-10">
+                                                                            <div className="flex items-center gap-2 mb-3">
+                                                                                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                                                                                    {member.position}
+                                                                                </span>
+                                                                            </div>
+                                                                            <p className="text-[14px] font-bold text-foreground mb-2">{member.name}</p>
+                                                                            <p className="text-[12px] sm:text-[13px] text-muted-foreground leading-relaxed font-medium">
+                                                                                {member.bio}
+                                                                            </p>
+                                                                            
+                                                                            <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
+                                                                                <div className="flex items-center gap-1.5">
+                                                                                    <div className="w-5 h-5 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                                                                        <svg className="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.761 0 5-2.239 5-5v-14c0-2.761-2.239-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                                                                                    </div>
+                                                                                    <span className="text-[10px] sm:text-[11px] font-bold text-blue-500">LinkedIn</span>
+                                                                                </div>
+                                                                                <div className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter opacity-40">Squad Nordex</div>
+                                                                            </div>
+                                                                        </div>
+                                                                        
+                                                                        {/* Arrow */}
+                                                                        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 sm:left-8 sm:translate-x-0 w-3 h-3 bg-card border-r border-b border-primary/20 rotate-45" />
+                                                                    </div>
+                                                                </motion.div>
                                                             )}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[13px] font-bold text-foreground leading-none">{member.name}</p>
-                                                            <p className="text-[10px] text-muted-foreground mt-1 font-medium">{member.position || 'Especialista'}</p>
-                                                        </div>
+                                                        </AnimatePresence>
                                                     </div>
                                                 ))}
                                             </div>
@@ -611,8 +668,8 @@ export default function DashboardPage() {
 
             {/* Welcome Popup */}
             {showWelcome && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-card border border-border rounded-2xl p-8 max-w-lg w-full shadow-2xl relative overflow-hidden">
+                <div className="fixed inset-0 z-50 flex justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in overflow-y-auto custom-scrollbar">
+                    <div className="bg-card border border-border rounded-2xl p-8 max-w-lg w-full shadow-2xl relative my-auto overflow-hidden">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/20 via-primary to-primary/20" />
                         <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-6">
                             <Image
@@ -668,7 +725,7 @@ export default function DashboardPage() {
             )}
 
             {/* Virtual Assistant */}
-            <NordyAssistant project={project} />
+            <NordyAssistant project={project} tourCompleted={data?.tourCompleted} />
         </div>
     )
 }

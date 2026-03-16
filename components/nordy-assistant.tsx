@@ -16,7 +16,7 @@ interface Step {
     target?: string
 }
 
-export default function NordyAssistant({ project }: { project: Project | null }) {
+export default function NordyAssistant({ project, tourCompleted }: { project: Project | null, tourCompleted?: boolean }) {
     const [isOpen, setIsOpen] = useState(false)
     const [messages, setMessages] = useState<Message[]>([])
     const [input, setInput] = useState('')
@@ -24,12 +24,14 @@ export default function NordyAssistant({ project }: { project: Project | null })
     const [isTutorial, setIsTutorial] = useState(false)
     const [tutorialStep, setTutorialStep] = useState(0)
     const [spotlight, setSpotlight] = useState<{ top: number, left: number, width: number, height: number } | null>(null)
+    const [bubblePos, setBubblePos] = useState<'top' | 'bottom' | 'left' | 'right'>('bottom')
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     const tutorialSteps: Step[] = [
         {
             title: "Bem-vindo ao seu Portal!",
             content: "Olá! Eu sou o Nordy. Vou te mostrar como acompanhar seu projeto de forma profissional aqui na Nordex Tech. Pronto?",
+            target: "tour-welcome"
         },
         {
             title: "Ambientes de Visualização",
@@ -54,43 +56,90 @@ export default function NordyAssistant({ project }: { project: Project | null })
         {
             title: "Dúvidas? Fale comigo!",
             content: "Sempre que precisar de algo ou tiver uma dúvida técnica, é só me chamar aqui. Finalizamos nosso tour! Como posso te ajudar agora?",
+            target: "tour-nordy-trigger"
         }
     ]
 
     useEffect(() => {
-        // Check if first time
-        const hasSeenTutorial = localStorage.getItem('nordy_tutorial_seen')
-        if (!hasSeenTutorial && project) {
-            setTimeout(() => {
-                setIsOpen(true)
-                setIsTutorial(true)
-                setMessages([{ role: 'assistant', content: tutorialSteps[0].content }])
-            }, 2000)
-        } else {
-            setMessages([{ 
-                role: 'assistant', 
-                content: `Olá! 😊 Sou o Nordy. Como posso ajudar você hoje com o projeto ${project?.name || 'seu projeto'}?` 
-            }])
+        // Automatic Trigger: Only if NOT completed in DB and project exists
+        if (tourCompleted === false && project) {
+            const timer = setTimeout(() => {
+                startTutorial()
+            }, 1500)
+            return () => clearTimeout(timer)
         }
-    }, [project])
+    }, [project, tourCompleted])
 
-    useEffect(() => {
-        if (isTutorial && tutorialSteps[tutorialStep].target) {
-            const el = document.getElementById(tutorialSteps[tutorialStep].target!)
-            if (el) {
-                const rect = el.getBoundingClientRect()
-                setSpotlight({
-                    top: rect.top + window.scrollY,
-                    left: rect.left + window.scrollX,
-                    width: rect.width,
-                    height: rect.height
-                })
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            } else {
-                setSpotlight(null)
-            }
+    const startTutorial = () => {
+        setIsTutorial(true)
+        setTutorialStep(0)
+        // Ensure Nordy icon is visible but chat isn't taking over
+        setIsOpen(false) 
+    }
+
+    const updateSpotlight = () => {
+        if (!isTutorial || !tutorialSteps[tutorialStep].target) {
+            setSpotlight(null)
+            return
+        }
+
+        const el = document.getElementById(tutorialSteps[tutorialStep].target!)
+        if (el) {
+            const rect = el.getBoundingClientRect()
+            
+            // Fixed positioning means we only care about viewport-relative rect
+            setSpotlight({
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                height: rect.height
+            })
+
+            const midX = rect.left + rect.width / 2
+            const midY = rect.top + rect.height / 2
+            const winW = window.innerWidth
+            const winH = window.innerHeight
+
+            // Determine best bubble position based on viewport quadrants
+            if (midX < winW / 3) setBubblePos('right')
+            else if (midX > (2 * winW) / 3) setBubblePos('left')
+            else if (midY > winH / 2) setBubblePos('top')
+            else setBubblePos('bottom')
         } else {
             setSpotlight(null)
+        }
+    }
+
+    useEffect(() => {
+        if (isTutorial) {
+            // Initial position
+            updateSpotlight()
+            
+            setIsOpen(false)
+
+            // Dynamic sync during interactions
+            window.addEventListener('scroll', updateSpotlight, { passive: true })
+            window.addEventListener('resize', updateSpotlight, { passive: true })
+            
+            const targetEl = tutorialSteps[tutorialStep].target 
+                ? document.getElementById(tutorialSteps[tutorialStep].target!) 
+                : null
+                
+            if (targetEl) {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                // Re-sync after scroll animation finishes
+                const timer = setTimeout(updateSpotlight, 800)
+                return () => {
+                    clearTimeout(timer)
+                    window.removeEventListener('scroll', updateSpotlight)
+                    window.removeEventListener('resize', updateSpotlight)
+                }
+            }
+
+            return () => {
+                window.removeEventListener('scroll', updateSpotlight)
+                window.removeEventListener('resize', updateSpotlight)
+            }
         }
     }, [tutorialStep, isTutorial])
 
@@ -124,50 +173,134 @@ export default function NordyAssistant({ project }: { project: Project | null })
         }
     }
 
-    const nextTutorialStep = () => {
+    const nextTutorialStep = async () => {
         if (tutorialStep < tutorialSteps.length - 1) {
-            const nextStep = tutorialStep + 1
-            setTutorialStep(nextStep)
-            setMessages(prev => [...prev, { role: 'assistant', content: tutorialSteps[nextStep].content }])
+            setTutorialStep(tutorialStep + 1)
         } else {
             setIsTutorial(false)
             setSpotlight(null)
-            localStorage.setItem('nordy_tutorial_seen', 'true')
-            setMessages(prev => [...prev, { role: 'assistant', content: "Ótimo! Agora você já sabe como tudo funciona. Explore seu novo painel!" }])
+            
+            // Persist completion in DB
+            try {
+                await fetch('/api/dashboard/tour-status', { method: 'POST' })
+            } catch (err) {
+                console.error('Failed to save tour status', err)
+            }
+
+            setIsOpen(true) // Open chat at the end to say goodbye
+            setMessages([{ role: 'assistant', content: "Ótimo! Agora você já sabe como tudo funciona por aqui. Explore seu novo painel e me chame se precisar!" }])
         }
     }
 
     return (
         <>
-            {/* Visual Spotlight Overlay */}
+            {/* 1. Professional Spotlight & Bubble Tour */}
             <AnimatePresence>
-                {isTutorial && spotlight && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[45] pointer-events-none"
-                    >
-                        {/* Dimmed background around spotlight */}
-                        <div className="absolute inset-0 bg-background/20 backdrop-blur-[2px]" />
+                {isTutorial && (
+                    <div className="fixed inset-0 z-[200] pointer-events-none">
+                        {/* Semi-transparent Overlay */}
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/10 pointer-events-auto cursor-pointer" 
+                            onClick={nextTutorialStep}
+                        />
                         
-                        {/* The Actual Spotlight */}
+                        {/* The Spotlight Highlighting the Element */}
+                        {spotlight && (
+                            <motion.div
+                                animate={{
+                                    top: spotlight.top - 12,
+                                    left: spotlight.left - 12,
+                                    width: spotlight.width + 24,
+                                    height: spotlight.height + 24,
+                                }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                className="fixed bg-transparent border-2 border-primary shadow-[0_0_0_9999px_rgba(0,0,0,0.3)] rounded-2xl z-[201] pointer-events-none"
+                            >
+                                <motion.div 
+                                    animate={{ opacity: [0.3, 0.6, 0.3] }}
+                                    transition={{ repeat: Infinity, duration: 1.5 }}
+                                    className="absolute -inset-2 border border-primary/50 rounded-[20px]" 
+                                />
+                            </motion.div>
+                        )}
+
+                        {/* Speech Bubble (Nordy Popover) */}
                         <motion.div
-                            animate={{
-                                top: spotlight.top - 8,
-                                left: spotlight.left - 8,
-                                width: spotlight.width + 16,
-                                height: spotlight.height + 16,
+                            key={tutorialStep}
+                            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                            animate={{ 
+                                opacity: 1, 
+                                scale: 1, 
+                                y: 0,
+                                top: spotlight 
+                                    ? (window.innerWidth < 640 
+                                        ? 'auto' 
+                                        : Math.max(20, Math.min(window.innerHeight - (bubblePos === 'top' ? 320 : 280), 
+                                            bubblePos === 'top' ? spotlight.top - 280 : (bubblePos === 'bottom' ? spotlight.top + spotlight.height + 40 : spotlight.top + (spotlight.height / 2) - 130)
+                                          )))
+                                    : '50%',
+                                bottom: (window.innerWidth < 640 && spotlight) ? 40 : 'auto',
+                                left: spotlight 
+                                    ? (window.innerWidth < 640 
+                                        ? '50%' 
+                                        : Math.max(20, Math.min(window.innerWidth - 370, 
+                                            bubblePos === 'left' ? spotlight.left - 380 : (bubblePos === 'right' ? spotlight.left + spotlight.width + 40 : spotlight.left + (spotlight.width / 2) - 175)
+                                          )))
+                                    : '50%',
+                                x: spotlight ? (window.innerWidth < 640 ? '-50%' : 0) : '-50%',
+                                marginTop: spotlight ? 0 : '-100px'
                             }}
-                            className="absolute bg-transparent border-2 border-primary shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] rounded-2xl pointer-events-none z-[46]"
+                            className="fixed z-[210] w-[calc(100vw-32px)] sm:w-[350px] pointer-events-auto"
                         >
-                            <motion.div 
-                                animate={{ opacity: [0.5, 1, 0.5] }}
-                                transition={{ repeat: Infinity, duration: 2 }}
-                                className="absolute -inset-1 border-2 border-primary rounded-2xl animate-pulse" 
-                            />
+                            <div className="relative p-5 sm:p-6 bg-card/85 backdrop-blur-2xl border border-primary/20 rounded-[24px] sm:rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden group">
+                                {/* Professional Glass Effects */}
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10" />
+                                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-primary/5 rounded-full blur-3xl" />
+                                
+                                <div className="flex gap-4 items-start relative z-10">
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
+                                        <Bot size={window.innerWidth < 640 ? 20 : 24} className="text-primary-foreground" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-primary mb-1.5 sm:mb-2 italic">
+                                            {tutorialSteps[tutorialStep].title}
+                                        </h4>
+                                        <p className="text-[14px] sm:text-[15px] font-medium leading-relaxed text-foreground/95">
+                                            {tutorialSteps[tutorialStep].content}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-6 sm:mt-8 flex items-center justify-between relative z-10">
+                                    <div className="flex gap-1.5">
+                                        {tutorialSteps.map((_, i) => (
+                                            <div key={i} className={`h-1 rounded-full transition-all duration-300 ${i === tutorialStep ? 'w-6 sm:w-8 bg-primary shadow-[0_0_8px_rgba(245,168,0,0.4)]' : 'w-1.5 sm:w-2 bg-primary/10'}`} />
+                                        ))}
+                                    </div>
+                                    <button 
+                                        onClick={nextTutorialStep}
+                                        className="h-9 sm:h-11 px-4 sm:px-6 bg-primary text-primary-foreground text-[12px] sm:text-[13px] font-bold rounded-full flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/10"
+                                    >
+                                        <span className="truncate">{tutorialStep === tutorialSteps.length - 1 ? 'Começar' : 'Próximo'}</span>
+                                        <ChevronRight size={14} className="shrink-0" />
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {/* Professional Bubble Arrow - Hidden on Mobile */}
+                            {spotlight && window.innerWidth >= 640 && (
+                                <div className={`absolute w-5 h-5 bg-card/85 border-primary/20 border transform rotate-45 z-[-1] ${
+                                    bubblePos === 'top' ? 'bottom-[-10px] left-1/2 -translate-x-1/2 border-t-0 border-l-0' :
+                                    bubblePos === 'bottom' ? 'top-[-10px] left-1/2 -translate-x-1/2 border-b-0 border-r-0' :
+                                    bubblePos === 'left' ? 'right-[-10px] top-1/2 -translate-y-1/2 border-b-0 border-l-0' :
+                                    'left-[-10px] top-1/2 -translate-y-1/2 border-t-0 border-r-0'
+                                }`} />
+                            )}
                         </motion.div>
-                    </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
             {/* Nordy Floating Trigger */}
@@ -175,11 +308,12 @@ export default function NordyAssistant({ project }: { project: Project | null })
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 whileHover={{ scale: 1.1 }}
-                className="fixed bottom-6 right-6 z-50"
+                className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[110]"
             >
                 <button
+                    id="tour-nordy-trigger"
                     onClick={() => setIsOpen(!isOpen)}
-                    className="relative w-16 h-16 rounded-full bg-primary text-primary-foreground shadow-[0_0_30px_rgba(245,168,0,0.4)] flex items-center justify-center group overflow-hidden"
+                    className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary text-primary-foreground shadow-[0_0_30px_rgba(245,168,0,0.4)] flex items-center justify-center group overflow-hidden"
                 >
                     <motion.div
                         animate={{ 
@@ -192,7 +326,7 @@ export default function NordyAssistant({ project }: { project: Project | null })
                             ease: "easeInOut"
                         }}
                     >
-                        {isOpen ? <X size={28} /> : <Bot size={28} />}
+                        {isOpen ? <X size={24} className="sm:size-[28px]" /> : <Bot size={24} className="sm:size-[28px]" />}
                     </motion.div>
                     
                     {/* Decorative Ring */}
@@ -201,7 +335,7 @@ export default function NordyAssistant({ project }: { project: Project | null })
                 
                 {/* Status Badge */}
                 {!isOpen && (
-                    <div className="absolute top-0 right-0 w-4 h-4 bg-green-500 border-2 border-background rounded-full" />
+                    <div className="absolute top-0 right-0 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-green-500 border-2 border-background rounded-full" />
                 )}
             </motion.div>
 
@@ -212,10 +346,10 @@ export default function NordyAssistant({ project }: { project: Project | null })
                         initial={{ opacity: 0, y: 50, scale: 0.9, x: 20 }}
                         animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
                         exit={{ opacity: 0, y: 50, scale: 0.9, x: 20 }}
-                        className="fixed bottom-24 right-6 z-50 w-[380px] h-[550px] bg-card border border-border rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden backdrop-blur-xl"
+                        className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-[110] w-[calc(100vw-32px)] sm:w-[380px] h-[70vh] sm:h-[550px] bg-card border border-border rounded-2xl sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden backdrop-blur-xl"
                     >
                         {/* Header */}
-                        <div className="p-4 bg-primary text-primary-foreground flex items-center justify-between shadow-lg">
+                        <div className="p-3 sm:p-4 bg-primary text-primary-foreground flex items-center justify-between shadow-lg shrink-0">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center relative">
                                     <Bot size={20} />
@@ -232,9 +366,19 @@ export default function NordyAssistant({ project }: { project: Project | null })
                                     <p className="text-[11px] opacity-80 mt-1">Seu Guia de Tecnologia</p>
                                 </div>
                             </div>
-                            <button onClick={() => setIsOpen(false)} className="hover:bg-white/10 p-2 rounded-full transition-colors">
-                                <X size={20} />
-                            </button>
+                            <div className="flex items-center gap-1">
+                                <button 
+                                    onClick={startTutorial} 
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-[11px] font-bold transition-all mr-2"
+                                    title="Reiniciar Tour"
+                                >
+                                    <HelpCircle size={14} />
+                                    <span>Tour</span>
+                                </button>
+                                <button onClick={() => setIsOpen(false)} className="hover:bg-white/10 p-2 rounded-full transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Messages Area */}
@@ -261,6 +405,17 @@ export default function NordyAssistant({ project }: { project: Project | null })
                                         <Loader2 size={14} className="animate-spin text-primary" />
                                         <span className="text-[12px] text-muted-foreground italic">Processando...</span>
                                     </div>
+                                </div>
+                            )}
+                            {!isTutorial && messages.length === 1 && (
+                                <div className="px-4 pb-4">
+                                    <button 
+                                        onClick={startTutorial}
+                                        className="w-full py-3 bg-primary/10 border border-primary/20 rounded-xl text-primary text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/20 transition-all"
+                                    >
+                                        <Sparkles size={16} />
+                                        Fazer o Tour pelo Portal
+                                    </button>
                                 </div>
                             )}
                             <div ref={messagesEndRef} />

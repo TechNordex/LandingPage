@@ -15,6 +15,7 @@ export interface PortalUser {
   position?: string
   avatar_url?: string
   bio?: string
+  tour_completed_at?: string | null
   created_at: string
 }
 
@@ -42,7 +43,7 @@ export interface Project {
   stage_url?: string | null
   prod_url?: string | null
   updates?: ProjectUpdate[]
-  squad?: { id: string, name: string, avatar_url: string, position: string }[]
+  squad?: { id: string, name: string, avatar_url: string, position: string, bio?: string }[]
 }
 
 export interface ProjectUpdate {

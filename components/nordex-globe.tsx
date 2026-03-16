@@ -23,8 +23,8 @@ export function NordexGlobe() {
         />
       </div>
       
-      {/* Subtle glow behind the logo to bridge the gap with the globe */}
-      <div className="absolute inset-0 bg-radial-gradient from-primary/10 to-transparent opacity-50 z-5 pointer-events-none" />
+      {/* Subtle glow behind the logo - reduced opacity to keep continents clear */}
+      <div className="absolute inset-0 bg-radial-gradient from-primary/5 to-transparent opacity-30 z-5 pointer-events-none" />
     </div>
   )
 }

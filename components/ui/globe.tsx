@@ -16,10 +16,10 @@ const GLOBE_CONFIG: COBEOptions = {
   phi: 0,
   theta: 0.3,
   dark: 1,
-  diffuse: 0.4,
+  diffuse: 1.2,
   mapSamples: 16000,
-  mapBrightness: 1.2,
-  baseColor: [0.1, 0.1, 0.1],
+  mapBrightness: 6,
+  baseColor: [0.3, 0.3, 0.3],
   markerColor: [0.98, 0.74, 0.14],
   glowColor: [0.98, 0.74, 0.14],
   markers: [

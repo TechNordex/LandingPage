@@ -8,7 +8,7 @@ export async function GET() {
 
     try {
         const userResult = await db.query(
-            'SELECT id, name, email, avatar_url, terms_accepted_at FROM portal_users WHERE id = $1',
+            'SELECT id, name, email, avatar_url, terms_accepted_at, tour_completed_at FROM portal_users WHERE id = $1',
             [session.id]
         )
         const user = userResult.rows[0]
@@ -17,7 +17,7 @@ export async function GET() {
             `SELECT p.*, 
                 COALESCE(
                     (SELECT json_agg(u) FROM (
-                        SELECT pu.id, pu.name, pu.avatar_url, pu.position 
+                        SELECT pu.id, pu.name, pu.avatar_url, pu.position, pu.bio 
                         FROM project_assignments pa 
                         JOIN portal_users pu ON pa.user_id = pu.id 
                         WHERE pa.project_id = p.id
@@ -57,6 +57,7 @@ export async function GET() {
             allUpdates: updates.rows,
             user: { name: user.name, email: user.email, avatar_url: user.avatar_url },
             termsAccepted: !!user.terms_accepted_at,
+            tourCompleted: !!user.tour_completed_at,
         })
     } catch (error) {
         console.error('[dashboard/project GET]', error)

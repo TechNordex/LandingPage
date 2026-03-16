@@ -34,6 +34,7 @@ export default function AdminPage() {
     const [currentUser, setCurrentUser] = useState<PortalUser | null>(null)
     const [uploadLoading, setUploadLoading] = useState(false)
     const [showAddTeamMember, setShowAddTeamMember] = useState(false)
+    const [resetTourLoading, setResetTourLoading] = useState<string | null>(null)
     
     // Image Cropper States
     const [showCropper, setShowCropper] = useState(false)
@@ -231,6 +232,23 @@ export default function AdminPage() {
         }
     }
 
+    const handleResetTour = async (userId: string) => {
+        setResetTourLoading(userId)
+        try {
+            const res = await fetch('/api/admin/users/reset-tour', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })
+            })
+            if (!res.ok) throw new Error()
+            alert('Tour resetado com sucesso para este usuário.')
+        } catch (error) {
+            alert('Erro ao resetar tour.')
+        } finally {
+            setResetTourLoading(null)
+        }
+    }
+
     const handleLogout = async () => {
         await fetch('/api/auth/logout', { method: 'POST' })
         router.push('/login')
@@ -268,7 +286,11 @@ export default function AdminPage() {
     const handleCreateClient = async (e: React.FormEvent) => {
         e.preventDefault(); setClientLoading(true)
         try {
-            const res = await fetch('/api/admin/users', { method: 'POST', body: JSON.stringify({ name: newClientName, email: newClientEmail, password: newClientPassword, role: newClientRole }) })
+            const res = await fetch('/api/admin/users', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newClientName, email: newClientEmail, password: newClientPassword, role: newClientRole }) 
+            })
             if (!res.ok) throw new Error()
             setShowNewClient(false); fetchData()
         } catch (err) { alert('Erro ao criar') } finally { setClientLoading(false) }
@@ -277,7 +299,11 @@ export default function AdminPage() {
     const handleEditUser = async (e: React.FormEvent) => {
         e.preventDefault(); if (!editingUser) return; setEditUserLoading(true)
         try {
-            const res = await fetch('/api/admin/users', { method: 'PUT', body: JSON.stringify({ id: editingUser.id, name: editUserName, email: editUserEmail, password: editUserPassword || undefined, role: editUserRole }) })
+            const res = await fetch('/api/admin/users', { 
+                method: 'PUT', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: editingUser.id, name: editUserName, email: editUserEmail, password: editUserPassword || undefined, role: editUserRole }) 
+            })
             if (!res.ok) throw new Error()
             setEditingUser(null); fetchData()
         } catch (err) { alert('Erro ao editar') } finally { setEditUserLoading(false) }
@@ -308,15 +334,19 @@ export default function AdminPage() {
     const handleCreateProject = async (e: React.FormEvent) => {
         e.preventDefault(); setProjectLoading(true)
         try {
-            const res = await fetch('/api/admin/projects', { method: 'POST', body: JSON.stringify({ 
-                client_id: newProjectClientId, 
-                name: newProjectName, 
-                description: newProjectDesc, 
-                preview_url: newProjectUrl, 
-                stage_url: newProjectStageUrl,
-                prod_url: newProjectProdUrl,
-                estimated_hours: newProjectHours ? Number(newProjectHours) : undefined 
-            }) })
+            const res = await fetch('/api/admin/projects', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    client_id: newProjectClientId, 
+                    name: newProjectName, 
+                    description: newProjectDesc, 
+                    preview_url: newProjectUrl, 
+                    stage_url: newProjectStageUrl,
+                    prod_url: newProjectProdUrl,
+                    estimated_hours: newProjectHours ? Number(newProjectHours) : undefined 
+                }) 
+            })
             if (!res.ok) throw new Error()
             setShowNewProject(false); setActiveTab('projects'); fetchData()
             setNewProjectName(''); setNewProjectClientId(''); setNewProjectDesc(''); setNewProjectUrl(''); setNewProjectStageUrl(''); setNewProjectProdUrl(''); setNewProjectHours('')
@@ -336,15 +366,19 @@ export default function AdminPage() {
     const handleEditProject = async (e: React.FormEvent) => {
         e.preventDefault(); if (!editingProject) return; setEditProjectLoading(true)
         try {
-            const res = await fetch('/api/admin/projects', { method: 'PUT', body: JSON.stringify({ 
-                id: editingProject.id, 
-                name: editProjectName, 
-                description: editProjectDesc, 
-                preview_url: editProjectUrl, 
-                stage_url: editProjectStageUrl,
-                prod_url: editProjectProdUrl,
-                estimated_hours: editProjectHours ? Number(editProjectHours) : undefined 
-            }) })
+            const res = await fetch('/api/admin/projects', { 
+                method: 'PUT', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    id: editingProject.id, 
+                    name: editProjectName, 
+                    description: editProjectDesc, 
+                    preview_url: editProjectUrl, 
+                    stage_url: editProjectStageUrl,
+                    prod_url: editProjectProdUrl,
+                    estimated_hours: editProjectHours ? Number(editProjectHours) : undefined 
+                }) 
+            })
             if (!res.ok) throw new Error()
             setEditingProject(null); fetchData()
         } catch (err) { alert('Erro ao atualizar proojeto') } finally { setEditProjectLoading(false) }
@@ -538,41 +572,41 @@ export default function AdminPage() {
 
             <main className="max-w-7xl mx-auto px-6 py-8">
                 {/* Custom Elegant Tab System */}
-                <div className="flex items-center justify-center mb-10 pb-4 border-b border-border/30">
-                    <div className="inline-flex items-center bg-card/40 backdrop-blur-md border border-border/50 rounded-xl p-1.5 shadow-2xl">
+                <div className="flex items-center justify-center mb-10 pb-4 border-b border-border/30 overflow-x-auto no-scrollbar scroll-smooth">
+                    <div className="inline-flex items-center bg-card/40 backdrop-blur-md border border-border/50 rounded-xl p-1.5 shadow-2xl flex-nowrap min-w-max">
                         <button 
                             onClick={() => setActiveTab('overview')} 
-                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 ${activeTab === 'overview' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
+                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'overview' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
                         >
                             Visão Geral
                         </button>
                         <button 
                             onClick={() => setActiveTab('projects')} 
-                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 ${activeTab === 'projects' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
+                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'projects' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
                         >
                             Esteiras & Diários
                         </button>
                         <button 
                             onClick={() => setActiveTab('users')} 
-                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 ${activeTab === 'users' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
+                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'users' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
                         >
                             Painel de Usuários
                         </button>
                         <button 
                             onClick={() => setActiveTab('team')} 
-                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 ${activeTab === 'team' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
+                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'team' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
                         >
                             Gestão de Equipe
                         </button>
                         <button 
                             onClick={() => setActiveTab('reports')} 
-                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 ${activeTab === 'reports' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
+                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'reports' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
                         >
                             Relatórios
                         </button>
                         <button 
                             onClick={() => setActiveTab('trash')} 
-                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 ${activeTab === 'trash' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
+                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'trash' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
                         >
                             Lixeira {trashProjects.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-background/20 rounded-full text-[10px]">{trashProjects.length}</span>}
                         </button>
@@ -924,8 +958,8 @@ export default function AdminPage() {
                                                 onClick={() => setExpandedClientId(isClientExpanded ? null : group.clientName)}
                                                 className="w-full text-left bg-card hover:bg-card/80 transition-colors cursor-pointer"
                                             >
-                                                <div className="p-5 sm:p-6 flex items-center gap-5">
-                                                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black shrink-0 aspect-square ${
+                                                <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
+                                                       <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center text-lg sm:text-xl font-black shrink-0 aspect-square ${
                                                         hasRejected ? 'bg-red-500/20 text-red-400' :
                                                         hasPending ? 'bg-amber-500/20 text-amber-400' :
                                                         'bg-primary/15 text-primary'
@@ -935,25 +969,25 @@ export default function AdminPage() {
 
                                                     {/* Info */}
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2.5 flex-wrap mb-1">
-                                                            <h3 className="text-[16px] font-bold text-foreground tracking-tight">{group.clientName}</h3>
+                                                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                                                            <h3 className="text-[15px] sm:text-[16px] font-bold text-foreground tracking-tight truncate">{group.clientName}</h3>
                                                             {hasRejected && (
-                                                                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border bg-red-500/10 border-red-500/30 text-red-400 animate-pulse">
+                                                                <span className="inline-flex items-center gap-1 text-[8px] sm:text-[9px] font-bold uppercase tracking-widest px-1.5 sm:px-2 py-0.5 rounded-full border bg-red-500/10 border-red-500/30 text-red-400 animate-pulse">
                                                                     <AlertCircle size={8} /> Ajuste Pendente
                                                                 </span>
                                                             )}
                                                             {!hasRejected && hasPending && (
-                                                                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400">
+                                                                <span className="inline-flex items-center gap-1 text-[8px] sm:text-[9px] font-bold uppercase tracking-widest px-1.5 sm:px-2 py-0.5 rounded-full border bg-amber-500/10 border-amber-500/30 text-amber-400">
                                                                     <Clock size={8} /> Em Homologação
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <div className="flex items-center gap-4 text-[11px] text-muted-foreground font-medium">
-                                                            <span className="flex items-center gap-1.5"><Briefcase size={11} /> {group.projects.length} projeto{group.projects.length !== 1 ? 's' : ''}</span>
-                                                            {group.clientEmail && <span className="truncate max-w-[200px]">{group.clientEmail}</span>}
+                                                        <div className="flex items-center gap-3 sm:gap-4 text-[10px] sm:text-[11px] text-muted-foreground font-medium">
+                                                            <span className="flex items-center gap-1.5 shrink-0"><Briefcase size={11} /> {group.projects.length} {group.projects.length !== 1 ? 'projetos' : 'projeto'}</span>
+                                                            {group.clientEmail && <span className="truncate max-w-[150px] sm:max-w-[200px]">{group.clientEmail}</span>}
                                                         </div>
                                                         {/* Per-client progress bar */}
-                                                        <div className="mt-3 flex items-center gap-3">
+                                                        <div className="mt-2.5 sm:mt-3 flex items-center gap-3">
                                                             <div className="flex-1 bg-border/30 h-1 rounded-full overflow-hidden">
                                                                 <div
                                                                     className="h-full rounded-full transition-all duration-1000"
@@ -963,19 +997,19 @@ export default function AdminPage() {
                                                                     }}
                                                                 />
                                                             </div>
-                                                            <span className="text-[10px] font-bold text-muted-foreground shrink-0">{doneCount}/{group.projects.length} concluído{doneCount !== 1 ? 's' : ''}</span>
+                                                            <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground shrink-0">{doneCount}/{group.projects.length} {doneCount !== 1 ? 'concluídos' : 'concluído'}</span>
                                                         </div>
                                                     </div>
 
                                                     {/* Right: quick actions + chevron */}
-                                                    <div className="flex items-center gap-3 shrink-0">
+                                                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/30 sm:border-transparent">
                                                         <button
-                                                            onClick={e => { e.stopPropagation(); setNewProjectClientId(group.client?.id || ''); setShowNewProject(true); }}
+                                                            onClick={e => { e.stopPropagation(); setNewProjectClientId(group?.client?.id || ''); setShowNewProject(true); }}
                                                             className="h-9 px-3 bg-secondary/80 hover:bg-primary hover:text-primary-foreground border border-border hover:border-primary rounded-lg text-[12px] font-semibold inline-flex items-center gap-1.5 transition-all"
                                                             title="Novo Projeto para este cliente"
                                                         >
                                                             <Plus size={13} />
-                                                            <span className="hidden sm:inline">Projeto</span>
+                                                            <span className="inline">Projeto</span>
                                                         </button>
                                                         <div className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all ${
                                                             isClientExpanded ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-background border-border text-muted-foreground'
@@ -1572,6 +1606,14 @@ export default function AdminPage() {
                                                                 <Plus size={12} /> Equipe
                                                             </button>
                                                         )}
+                                                        <button 
+                                                            onClick={() => handleResetTour(u.id)} 
+                                                            disabled={resetTourLoading === u.id}
+                                                            className="inline-flex h-8 items-center justify-center bg-background border border-primary/30 hover:border-primary px-3 rounded text-[10px] font-bold uppercase tracking-widest transition-all gap-1.5 text-primary disabled:opacity-50"
+                                                            title="Resetar Tour de Boas-vindas"
+                                                        >
+                                                            {resetTourLoading === u.id ? <Loader2 size={12} className="animate-spin" /> : <Clock size={12} />} Reset Tour
+                                                        </button>
                                                         <button onClick={() => { setEditingUser(u); setEditUserName(u.name); setEditUserEmail(u.email); setEditUserRole(u.role); setEditUserPassword(''); }} className="inline-flex h-8 items-center justify-center bg-background border border-border hover:border-primary px-3 rounded text-[12px] font-medium transition-all gap-1.5 focus:outline-none focus:ring-1 focus:ring-primary shadow-sm hover:text-primary">
                                                             <Edit size={12} /> Editar
                                                         </button>
@@ -1682,8 +1724,8 @@ export default function AdminPage() {
 
             {/* MODAL: Editor de Projeto */}
             {editingProject && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                <div className="fixed inset-0 z-50 flex justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in overflow-y-auto custom-scrollbar">
+                    <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] relative my-auto overflow-hidden">
                         <div className="flex justify-between items-center p-6 border-b border-border bg-secondary/10">
                             <h3 className="text-[16px] font-semibold text-foreground">Ajustes Primários do Projeto</h3>
                             <button onClick={() => setEditingProject(null)} className="text-muted-foreground hover:text-foreground bg-background p-1.5 rounded border border-border shadow-sm"><X size={16} /></button>
@@ -1730,8 +1772,8 @@ export default function AdminPage() {
 
             {/* MODAL: Novo Cliente */}
              {showNewClient && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                <div className="fixed inset-0 z-50 flex justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in overflow-y-auto custom-scrollbar">
+                    <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] relative my-auto overflow-hidden">
                         <div className="flex justify-between items-center p-6 border-b border-border bg-secondary/10">
                             <h3 className="text-[16px] font-semibold text-foreground">Emissão de Nova Credencial</h3>
                             <button onClick={() => setShowNewClient(false)} className="text-muted-foreground hover:text-foreground bg-background p-1.5 rounded border border-border shadow-sm"><X size={16} /></button>
@@ -1769,8 +1811,8 @@ export default function AdminPage() {
 
             {/* MODAL: Novo Projeto*/}
             {showNewProject && (
-                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
-                 <div className="bg-card border border-border rounded-xl w-full max-w-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                <div className="fixed inset-0 z-50 flex justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in overflow-y-auto custom-scrollbar">
+                    <div className="bg-card border border-border rounded-xl w-full max-w-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] relative my-auto">
                      <div className="flex justify-between items-center p-6 border-b border-border bg-secondary/10">
                          <h3 className="text-[16px] font-semibold text-foreground">Abrir Nova Pipeline</h3>
                          <button onClick={() => setShowNewProject(false)} className="text-muted-foreground hover:text-foreground bg-background p-1.5 rounded border border-border shadow-sm"><X size={16} /></button>
@@ -1823,8 +1865,8 @@ export default function AdminPage() {
             
             {/* MODAL: Editor de Usuário */}
             {editingUser && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
+                <div className="fixed inset-0 z-50 flex justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in overflow-y-auto custom-scrollbar">
+                    <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-[0_0_50px_rgba(0,0,0,0.5)] relative my-auto overflow-hidden">
                         <div className="flex justify-between items-center p-6 border-b border-border bg-secondary/10">
                             <h3 className="text-[16px] font-semibold text-foreground">Gestão de Identidade</h3>
                             <button onClick={() => setEditingUser(null)} className="text-muted-foreground hover:text-foreground bg-background p-1.5 rounded border border-border shadow-sm"><X size={16} /></button>
@@ -1862,8 +1904,8 @@ export default function AdminPage() {
 
             {/* MODAL: Confirmação de Exclusão de Usuário */}
             {deletingUser && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-card border border-red-500/30 rounded-xl w-full max-w-md shadow-[0_0_50px_rgba(239,68,68,0.15)] relative overflow-hidden">
+                <div className="fixed inset-0 z-50 flex justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in overflow-y-auto custom-scrollbar">
+                    <div className="bg-card border border-red-500/30 rounded-xl w-full max-w-md shadow-[0_0_50px_rgba(239,68,68,0.15)] relative my-auto overflow-hidden">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-red-500/60" />
                         <div className="p-6 border-b border-border">
                             <div className="flex items-center gap-3">
@@ -1921,8 +1963,8 @@ export default function AdminPage() {
             )}
             {/* MODAL: Editor de Equipe */}
             {editingTeamMember && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in">
-                    <div className="bg-card border border-border rounded-3xl w-full max-w-lg shadow-2xl relative overflow-hidden">
+                <div className="fixed inset-0 z-50 flex justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in overflow-y-auto custom-scrollbar">
+                    <div className="bg-card border border-border rounded-3xl w-full max-w-lg shadow-2xl relative my-auto overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
                         <div className="flex justify-between items-center p-8 border-b border-border bg-secondary/10">
                             <div>
@@ -1932,7 +1974,7 @@ export default function AdminPage() {
                             <button onClick={() => setEditingTeamMember(null)} className="text-muted-foreground hover:text-foreground bg-background p-2 rounded-xl border border-border shadow-sm"><X size={18} /></button>
                         </div>
                         <form onSubmit={handleEditTeamMember} className="p-8 space-y-5">
-                            <div className="flex items-center gap-6 mb-2">
+                            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-2">
                                 <div className="w-20 h-20 rounded-full bg-secondary border-2 border-primary/20 overflow-hidden relative group shrink-0 aspect-square">
                                     {editTeamAvatar ? (
                                         <img src={editTeamAvatar} alt="Avatar" className="w-full h-full object-cover" />
@@ -1940,22 +1982,22 @@ export default function AdminPage() {
                                         <div className="w-full h-full flex items-center justify-center text-primary/40"><Users size={32} /></div>
                                     )}
                                 </div>
-                                <div className="flex-1 space-y-3">
-                                    <label className="block text-[11px] font-black uppercase tracking-widest text-primary">Foto de Perfil</label>
-                                    <div className="flex gap-2">
-                                        <div className="flex-1 bg-secondary/50 border border-border rounded-xl px-4 py-2 text-[12px] text-muted-foreground truncate flex items-center">
+                                <div className="flex-1 space-y-3 w-full">
+                                    <label className="block text-[11px] font-black uppercase tracking-widest text-primary text-center sm:text-left">Foto de Perfil</label>
+                                    <div className="flex flex-col xs:flex-row gap-2">
+                                        <div className="flex-1 bg-secondary/50 border border-border rounded-xl px-4 py-2 text-[12px] text-muted-foreground truncate flex items-center min-w-0">
                                             {editTeamAvatar || "Nenhuma imagem selecionada"}
                                         </div>
                                         <button 
                                             type="button"
                                             onClick={(e) => handleFileUploadClick(e, 'team')}
-                                            className="h-10 px-4 bg-primary text-primary-foreground rounded-xl text-[12px] font-bold hover:bg-primary/90 transition-all flex items-center gap-2 shadow-lg shadow-primary/20"
+                                            className="h-10 px-4 bg-primary text-primary-foreground rounded-xl text-[12px] font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20 shrink-0"
                                         >
                                             {uploadLoading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                                            {editTeamAvatar ? 'Alterar Foto' : 'Subir Foto'}
+                                            <span className="whitespace-nowrap">{editTeamAvatar ? 'Alterar Foto' : 'Subir Foto'}</span>
                                         </button>
                                     </div>
-                                    <p className="text-[10px] text-muted-foreground italic">* Faça o upload de um arquivo local e defina o recorte perfeito.</p>
+                                    <p className="text-[10px] text-muted-foreground italic text-center sm:text-left">* Faça o upload de um arquivo local e defina o recorte perfeito.</p>
                                 </div>
                             </div>
 
@@ -1983,8 +2025,8 @@ export default function AdminPage() {
             )}
             {/* MODAL: Atribuição de Equipe */}
             {assigningProject && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-card border border-border rounded-3xl w-full max-w-md shadow-2xl relative overflow-hidden">
+                <div className="fixed inset-0 z-50 flex justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in overflow-y-auto custom-scrollbar">
+                    <div className="bg-card border border-border rounded-3xl w-full max-w-md shadow-2xl relative my-auto overflow-hidden">
                         <div className="p-8 border-b border-border bg-secondary/10 flex items-center justify-between">
                             <div>
                                 <h3 className="text-xl font-bold text-foreground tracking-tight">Atribuir Squad</h3>
@@ -2025,8 +2067,8 @@ export default function AdminPage() {
 
             {/* MODAL: Adicionar Integrante Existente */}
             {showAddTeamMember && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in">
-                    <div className="bg-card border border-border rounded-3xl w-full max-w-md shadow-2xl relative overflow-hidden">
+                <div className="fixed inset-0 z-50 flex justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in overflow-y-auto custom-scrollbar">
+                    <div className="bg-card border border-border rounded-3xl w-full max-w-md shadow-2xl relative my-auto overflow-hidden">
                         <div className="p-8 border-b border-border bg-secondary/10 flex items-center justify-between">
                             <div>
                                 <h3 className="text-xl font-black text-foreground tracking-tight uppercase">Integrar Especialista</h3>
