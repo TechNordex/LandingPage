@@ -8,29 +8,54 @@ export async function GET() {
 
     try {
         const userResult = await db.query(
-            'SELECT id, name, email, terms_accepted_at FROM portal_users WHERE id = $1',
+            'SELECT id, name, email, avatar_url, terms_accepted_at FROM portal_users WHERE id = $1',
             [session.id]
         )
         const user = userResult.rows[0]
 
-        const projects = await db.query(
-            'SELECT * FROM projects WHERE client_id = $1 ORDER BY updated_at DESC',
+        const projectsResult = await db.query(
+            `SELECT p.*, 
+                COALESCE(
+                    (SELECT json_agg(u) FROM (
+                        SELECT pu.id, pu.name, pu.avatar_url, pu.position 
+                        FROM project_assignments pa 
+                        JOIN portal_users pu ON pa.user_id = pu.id 
+                        WHERE pa.project_id = p.id
+                    ) u), '[]'
+                ) as squad
+            FROM projects p 
+            WHERE p.client_id = $1 AND p.deleted_at IS NULL 
+            ORDER BY p.updated_at DESC`,
             [session.id]
         )
 
         let updates = { rows: [] as any[] }
-        if (projects.rows.length > 0) {
-            const projectIds = projects.rows.map(p => p.id)
+        if (projectsResult.rows.length > 0) {
+            const projectIds = projectsResult.rows.map(p => p.id)
             updates = await db.query(
-                'SELECT * FROM project_updates WHERE project_id = ANY($1) ORDER BY created_at DESC',
+                `SELECT 
+                    id, 
+                    project_id, 
+                    stage, 
+                    title, 
+                    message, 
+                    client_note, 
+                    status, 
+                    feedback, 
+                    viewed_at, 
+                    preview_url, 
+                    created_at 
+                 FROM project_updates 
+                 WHERE project_id = ANY($1::uuid[]) 
+                 ORDER BY created_at DESC`,
                 [projectIds]
             )
         }
 
         return NextResponse.json({
-            projects: projects.rows,
+            projects: projectsResult.rows,
             allUpdates: updates.rows,
-            user: { name: user.name, email: user.email },
+            user: { name: user.name, email: user.email, avatar_url: user.avatar_url },
             termsAccepted: !!user.terms_accepted_at,
         })
     } catch (error) {

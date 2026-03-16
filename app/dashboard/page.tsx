@@ -10,12 +10,13 @@ import Image from 'next/image'
 import {
     LogOut, ExternalLink, Loader2, Link as LinkIcon,
     FileText, Activity, Info, MessageSquareText,
-    Save, Check, X, ThumbsUp, ThumbsDown, Clock, AlertCircle
+    Save, Check, X, ThumbsUp, ThumbsDown, Clock, AlertCircle, Users
 } from 'lucide-react'
 import { ProjectTracker } from '@/components/project-tracker'
 import type { Project, ProjectUpdate } from '@/lib/types'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import NordyAssistant from '@/components/nordy-assistant'
 import confetti from 'canvas-confetti'
 
 export default function DashboardPage() {
@@ -23,7 +24,7 @@ export default function DashboardPage() {
     const [data, setData] = useState<{
         projects: Project[]
         allUpdates: ProjectUpdate[]
-        user?: { name: string; email: string }
+        user?: { name: string; email: string; avatar_url?: string }
     } | null>(null)
     const [loading, setLoading] = useState(true)
     const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
@@ -33,14 +34,14 @@ export default function DashboardPage() {
     const [tempNoteValue, setTempNoteValue] = useState('')
     const [savingNoteId, setSavingNoteId] = useState<string | null>(null)
 
-    // Preview approval state
-    const [approvingStatus, setApprovingStatus] = useState<'approved' | 'rejected' | null>(null)
-    const [showRejectionForm, setShowRejectionForm] = useState(false)
-    const [rejectionFeedback, setRejectionFeedback] = useState('')
-
     // Welcome popup
     const [showWelcome, setShowWelcome] = useState(false)
     const [agreedToTerms, setAgreedToTerms] = useState(false)
+
+    // Per-update authorization
+    const [approvingUpdateId, setApprovingUpdateId] = useState<string | null>(null)
+    const [showUpdateRejectionFormId, setShowUpdateRejectionFormId] = useState<string | null>(null)
+    const [updateRejectionFeedback, setUpdateRejectionFeedback] = useState('')
 
     useEffect(() => {
         fetch('/api/dashboard/project')
@@ -101,63 +102,85 @@ export default function DashboardPage() {
             ...data,
             allUpdates: data.allUpdates.map(u => u.id === updateId ? { ...u, client_note: tempNoteValue } : u)
         })
-        setEditingNoteId(null)
+
         try {
             const res = await fetch('/api/dashboard/project-notes', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ update_id: updateId, note: tempNoteValue }),
+                body: JSON.stringify({ update_id: updateId, note: tempNoteValue })
             })
-            if (!res.ok) throw new Error('Failed')
+            if (!res.ok) throw new Error()
+            setEditingNoteId(null)
         } catch {
             setData({ ...data, allUpdates: previousUpdates })
+            alert('Erro ao salvar nota')
         } finally {
             setSavingNoteId(null)
         }
     }
 
-    const submitPreviewDecision = async (decision: 'approved' | 'rejected') => {
-        if (!data || !activeProjectId) return
-        const activeProject = data.projects.find(p => p.id === activeProjectId)
-        if (!activeProject) return
-        
-        if (decision === 'rejected' && !showRejectionForm) {
-            setShowRejectionForm(true)
-            return
-        }
+    const handleUpdateStatus = async (updateId: string, status: 'authorized' | 'denied', feedback?: string) => {
+        if (!data) return
+        setApprovingUpdateId(updateId)
+        const previousUpdates = [...data.allUpdates]
 
-        if (decision === 'rejected' && rejectionFeedback.trim().length < 5) {
-            return
-        }
-
-        setApprovingStatus(decision)
-        // Optimistic update locally
-        const previousProjects = [...data.projects]
-        setData({ 
-            ...data, 
-            projects: data.projects.map(p => 
-                p.id === activeProjectId 
-                    ? { ...p, preview_status: decision, preview_feedback: decision === 'rejected' ? rejectionFeedback : null }
-                    : p
-            )
+        // Optimistic update
+        setData({
+            ...data,
+            allUpdates: data.allUpdates.map(u => u.id === updateId ? { ...u, status, feedback: feedback || null } : u)
         })
-        setShowRejectionForm(false)
 
         try {
-            const res = await fetch('/api/dashboard/preview-status', {
+            const res = await fetch('/api/dashboard/update-status', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    status: decision,
-                    feedback: decision === 'rejected' ? rejectionFeedback : undefined
-                }),
+                body: JSON.stringify({ update_id: updateId, status, feedback })
             })
-            if (!res.ok) throw new Error('Failed')
+            if (!res.ok) throw new Error()
+            setShowUpdateRejectionFormId(null)
+            setUpdateRejectionFeedback('')
         } catch {
-            // Rollback
-            setData({ ...data, projects: previousProjects })
+            setData({ ...data, allUpdates: previousUpdates })
+            alert('Erro ao processar sua decisão')
         } finally {
-            setApprovingStatus(null)
+            setApprovingUpdateId(null)
+        }
+    }
+
+    const markAsViewed = async (updateId: string) => {
+        try {
+            await fetch('/api/dashboard/update-viewed', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ update_id: updateId })
+            })
+        } catch {
+            // Silently fail for audit trail
+        }
+    }
+
+    const markAllAsViewed = async () => {
+        const unviewedIds = updates.filter(u => u.preview_url && !u.viewed_at).map(u => u.id)
+        if (unviewedIds.length === 0) return
+
+        // Optimistic local update
+        setData(prev => prev ? {
+            ...prev,
+            allUpdates: prev.allUpdates.map(u => 
+                unviewedIds.includes(u.id) ? { ...u, viewed_at: new Date().toISOString() } : u
+            )
+        } : prev)
+
+        try {
+            await Promise.all(unviewedIds.map(id => 
+                fetch('/api/dashboard/update-viewed', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ update_id: id })
+                })
+            ))
+        } catch {
+            // Silently fail or rollback if needed, but viewed_at is an audit trail
         }
     }
 
@@ -176,11 +199,11 @@ export default function DashboardPage() {
 
     const { projects, allUpdates, user } = data || {}
     const project = projects?.find(p => p.id === activeProjectId) || null
-    const updates = allUpdates?.filter(u => u.project_id === activeProjectId) || []
+    const updates = allUpdates?.filter(u => 
+        String(u.project_id).trim().toLowerCase() === String(activeProjectId).trim().toLowerCase()
+    ) || []
 
-    // Derived preview state
-    const status = project?.preview_status ?? 'none'
-    const hasPendingReview = (status === 'pending' || (status === 'none' && project?.preview_url)) && Boolean(project?.preview_url)
+    const hasUnviewedUpdates = updates.some(u => u.preview_url && !u.viewed_at)
 
     return (
         <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
@@ -203,13 +226,17 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-6">
                         {user && (
-                            <div className="hidden sm:flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center text-[13px] font-medium text-primary">
-                                    {user.name.charAt(0).toUpperCase()}
+                            <div className="hidden sm:flex items-center gap-3 pr-4 border-r border-border h-10">
+                                <div className="flex flex-col text-right">
+                                    <span className="text-[13px] font-bold leading-none text-foreground">{user.name}</span>
+                                    <span className="text-[10px] text-muted-foreground mt-1 uppercase tracking-tighter">Cliente Nordex</span>
                                 </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[13px] font-medium leading-none text-foreground">{user.name}</span>
-                                    <span className="text-[11px] text-muted-foreground mt-1">{user.email}</span>
+                                <div className="w-9 h-9 rounded-full bg-secondary border border-border overflow-hidden shrink-0 aspect-square">
+                                    {(user as any).avatar_url ? (
+                                        <img src={(user as any).avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-primary font-bold">{user.name.charAt(0)}</div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -269,108 +296,76 @@ export default function DashboardPage() {
                                             {project.description}
                                         </p>
                                     )}
-                                </div>
 
-                                {/* Smart Preview Button Block */}
-                                <div className="flex flex-col items-end gap-3 shrink-0">
-                                {hasPendingReview ? (
-                                    /* Status: PENDING — show the CTA + approve/reject buttons */
-                                    <div className="flex flex-col gap-3 w-full sm:w-auto">
-                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                                            <a
-                                                href={project.preview_url!}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="group inline-flex items-center justify-center gap-2 h-11 px-6 rounded-lg bg-primary text-primary-foreground font-semibold text-[14px] hover:opacity-90 transition-all shadow-[0_0_24px_rgba(245,168,0,0.25)] animate-pulse-slow shrink-0"
-                                            >
-                                                <span>Avaliar Nova Entrega</span>
-                                                <ExternalLink size={16} />
-                                            </a>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => submitPreviewDecision('approved')}
-                                                    disabled={approvingStatus !== null || showRejectionForm}
-                                                    className="h-11 px-4 flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 text-green-400 text-[13px] font-semibold hover:bg-green-500/20 transition-colors disabled:opacity-50"
-                                                >
-                                                    {approvingStatus === 'approved' ? <Loader2 size={14} className="animate-spin" /> : <ThumbsUp size={14} />}
-                                                    Aprovar
-                                                </button>
-                                                <button
-                                                    onClick={() => submitPreviewDecision('rejected')}
-                                                    disabled={approvingStatus !== null}
-                                                    className={`h-11 px-4 flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg border transition-all text-[13px] font-semibold disabled:opacity-50 ${showRejectionForm ? 'border-red-500 bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20'}`}
-                                                >
-                                                    {approvingStatus === 'rejected' ? <Loader2 size={14} className="animate-spin" /> : <ThumbsDown size={14} />}
-                                                    {showRejectionForm ? 'Confirmar Ajustes' : 'Solicitar Ajustes'}
-                                                </button>
+                                    <div id="tour-env-links" className="flex flex-wrap gap-3 mt-6">
+                                        <a 
+                                            href={project.stage_url || '#'} 
+                                            target="_blank" 
+                                            rel="noreferrer"
+                                            className={`h-10 px-5 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center gap-2 transition-all duration-500 group ${
+                                                project.stage_url 
+                                                ? 'bg-amber-500 text-black shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:scale-105 hover:shadow-amber-500/50' 
+                                                : 'bg-secondary/40 text-muted-foreground cursor-not-allowed opacity-40 grayscale'
+                                            }`}
+                                            onClick={(e) => !project.stage_url && e.preventDefault()}
+                                        >
+                                            <div className={`w-2 h-2 rounded-full ${project.stage_url ? 'bg-black animate-pulse' : 'bg-muted-foreground'}`} />
+                                            Ambiente Stage
+                                            {project.stage_url && <ExternalLink size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />}
+                                        </a>
+
+                                        <a 
+                                            href={project.prod_url || '#'} 
+                                            target="_blank" 
+                                            rel="noreferrer"
+                                            className={`h-10 px-5 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center gap-2 transition-all duration-500 group ${
+                                                project.prod_url 
+                                                ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)] hover:scale-105 hover:shadow-primary/50' 
+                                                : 'bg-secondary/40 text-muted-foreground cursor-not-allowed opacity-40 grayscale'
+                                            }`}
+                                            onClick={(e) => !project.prod_url && e.preventDefault()}
+                                        >
+                                            <div className={`w-2 h-2 rounded-full ${project.prod_url ? 'bg-primary-foreground animate-pulse' : 'bg-muted-foreground'}`} />
+                                            Ambiente Prod
+                                            {project.prod_url && <ExternalLink size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />}
+                                        </a>
+                                    </div>
+                                    
+                                    {/* Squad visibility for client */}
+                                    {project.squad && project.squad.length > 0 && (
+                                        <div id="tour-squad" className="mt-6 flex flex-col gap-2">
+                                            <span className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                                <Users size={12} /> Squad de Especialistas
+                                            </span>
+                                            <div className="flex flex-wrap gap-4">
+                                                {project.squad.map(member => (
+                                                    <div key={member.id} className="flex items-center gap-3 bg-secondary/30 border border-border/50 rounded-2xl px-4 py-2 hover:bg-secondary/50 transition-all group">
+                                                        <div className="w-10 h-10 rounded-full bg-background border border-border overflow-hidden shrink-0 aspect-square">
+                                                            {member.avatar_url ? (
+                                                                <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center text-primary font-bold">{member.name.charAt(0)}</div>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[13px] font-bold text-foreground leading-none">{member.name}</p>
+                                                            <p className="text-[10px] text-muted-foreground mt-1 font-medium">{member.position || 'Especialista'}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
-
-                                        {/* Mandatory Rejection Feedback Field */}
-                                        {showRejectionForm && (
-                                            <div className="bg-card border border-red-500/30 rounded-xl p-4 shadow-xl animate-in slide-in-from-top-2 duration-300">
-                                                <div className="flex items-center gap-2 text-red-400 font-bold text-[11px] uppercase tracking-wider mb-2">
-                                                    <AlertCircle size={14} /> Descrição Obrigatória dos Ajustes
-                                                </div>
-                                                <textarea
-                                                    autoFocus
-                                                    value={rejectionFeedback}
-                                                    onChange={e => setRejectionFeedback(e.target.value)}
-                                                    placeholder="Descreva detalhadamente o que precisa ser alterado para que possamos ajustar imediatamente..."
-                                                    className="w-full h-24 bg-background border border-border rounded-lg text-[13px] text-foreground focus:border-red-500/50 outline-none resize-none p-3 placeholder:text-muted-foreground/40"
-                                                />
-                                                <div className="flex justify-between items-center mt-2">
-                                                    <p className="text-[11px] text-muted-foreground">
-                                                        {rejectionFeedback.trim().length < 5 ? (
-                                                            <span className="text-red-400/80">Mínimo 5 caracteres para enviar.</span>
-                                                        ) : (
-                                                            <span className="text-green-400/80">Pronto para enviar.</span>
-                                                        )}
-                                                    </p>
-                                                    <button 
-                                                        onClick={() => { setShowRejectionForm(false); setRejectionFeedback(''); }}
-                                                        className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-                                                    >
-                                                        Cancelar
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : status === 'approved' ? (
-                                    /* Status: APPROVED */
-                                    <div className="inline-flex items-center gap-2 h-11 px-5 rounded-lg border border-green-500/30 bg-green-500/10 text-green-400 text-[13px] font-semibold shrink-0">
-                                        <Check size={15} />
-                                        Entrega Aprovada
-                                    </div>
-                                ) : status === 'rejected' ? (
-                                    /* Status: REJECTED — waiting for admin to fix */
-                                    <div className="flex flex-col items-end gap-2">
-                                        <div className="inline-flex items-center gap-2 h-11 px-5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[13px] font-semibold shrink-0">
-                                            <Clock size={15} />
-                                            Ajustes Solicitados — aguardando retorno
-                                        </div>
-                                        {project.preview_feedback && (
-                                            <div className="max-w-[300px] bg-secondary/30 border border-border rounded-lg p-3 text-[12px] text-muted-foreground italic">
-                                                "{project.preview_feedback}"
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    /* Status: NONE — no link available yet */
-                                    <div className="inline-flex items-center gap-2 h-11 px-5 rounded-lg bg-secondary/50 border border-border text-muted-foreground text-[14px] font-medium cursor-not-allowed shrink-0">
-                                        <LinkIcon size={16} />
-                                        Nenhuma versão de teste disponível
-                                    </div>
-                                )}
+                                    )}
                                 </div>
+
+                                {/* Smart Preview Button Block - REMOVED */}
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in items-start" style={{ animationDelay: '100ms' }}>
 
                             {/* Pipeline Card */}
-                            <div className="lg:col-span-1 rounded-2xl bg-card border border-border p-6 flex flex-col relative">
+                            <div id="tour-pipeline" className="lg:col-span-1 rounded-2xl bg-card border border-border p-6 flex flex-col relative">
                                 <div className="flex items-center gap-3 mb-6 relative z-10">
                                     <div className="w-8 h-8 rounded-lg bg-secondary border border-border flex items-center justify-center text-muted-foreground">
                                         <Activity size={16} />
@@ -386,7 +381,7 @@ export default function DashboardPage() {
                             </div>
 
                             {/* Updates & Notes Feed Card */}
-                            <div className="lg:col-span-2 rounded-2xl bg-card border border-border p-8 flex flex-col h-[700px]">
+                            <div id="tour-updates" className="lg:col-span-2 rounded-2xl bg-card border border-border p-8 flex flex-col h-[700px]">
                                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-border shrink-0">
                                     <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
@@ -420,11 +415,34 @@ export default function DashboardPage() {
                                                         <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-card border-[3px] border-primary shadow-[0_0_10px_rgba(245,168,0,0.4)]" />
 
                                                         {/* Update Content */}
-                                                        <div className="bg-secondary/20 border border-border rounded-xl p-5 mb-4">
+                                                        <div 
+                                                            className="bg-secondary/20 border border-border rounded-xl p-5 mb-4 relative overflow-hidden group/card"
+                                                            onMouseEnter={() => !upd.viewed_at && markAsViewed(upd.id)}
+                                                        >
+                                                            {/* Sync Alert (Defasagem) */}
+                                                            {upd.preview_url && project.preview_url !== upd.preview_url && (
+                                                                <div className="absolute top-0 right-0 px-3 py-1 bg-amber-500/10 border-l border-b border-amber-500/20 rounded-bl-lg flex items-center gap-1.5 animate-pulse">
+                                                                    <AlertCircle size={10} className="text-amber-500" />
+                                                                    <span className="text-[9px] font-bold text-amber-500 uppercase tracking-tight">Build em Defasagem</span>
+                                                                </div>
+                                                            )}
+
                                                             <div className="flex items-center justify-between mb-2">
-                                                                <span className="text-[11px] font-bold text-primary tracking-widest uppercase bg-primary/10 px-2 py-0.5 rounded-sm">
-                                                                    Etapa {upd.stage}
-                                                                </span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[11px] font-bold text-primary tracking-widest uppercase bg-primary/10 px-2 py-0.5 rounded-sm">
+                                                                        Etapa {upd.stage}
+                                                                    </span>
+                                                                    {upd.status === 'authorized' && (
+                                                                        <span className="text-[9px] font-bold text-green-500 uppercase flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-sm">
+                                                                            <Check size={10} /> Aprovado
+                                                                        </span>
+                                                                    )}
+                                                                    {upd.status === 'denied' && (
+                                                                        <span className="text-[9px] font-bold text-red-500 uppercase flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded-sm">
+                                                                            <X size={10} /> Ajuste Solicitado
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                                 <span className="text-[12px] font-medium text-muted-foreground">
                                                                     {format(new Date(upd.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
                                                                 </span>
@@ -433,8 +451,93 @@ export default function DashboardPage() {
                                                                 {upd.title}
                                                             </h4>
                                                             {upd.message && (
-                                                                <div className="text-[14px] text-muted-foreground/90 leading-relaxed bg-background/50 p-3 rounded-lg border border-border/30">
+                                                                <div className="text-[14px] text-muted-foreground/90 leading-relaxed bg-background/50 p-3 rounded-lg border border-border/30 mb-4">
                                                                     {upd.message}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Granular Authorization Buttons */}
+                                                            {upd.status === 'pending' && (
+                                                                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/30">
+                                                                    <button
+                                                                        disabled={approvingUpdateId === upd.id}
+                                                                        onClick={() => handleUpdateStatus(upd.id, 'authorized')}
+                                                                        className="h-8 px-4 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold hover:opacity-90 flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(245,168,0,0.1)]"
+                                                                    >
+                                                                        {approvingUpdateId === upd.id ? <Loader2 size={12} className="animate-spin" /> : <ThumbsUp size={12} />}
+                                                                        Aprovar Etapa
+                                                                    </button>
+                                                                    <button
+                                                                        disabled={approvingUpdateId === upd.id}
+                                                                        onClick={() => setShowUpdateRejectionFormId(upd.id)}
+                                                                        className="h-8 px-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 text-[11px] font-bold flex items-center gap-1.5 transition-all"
+                                                                    >
+                                                                        <ThumbsDown size={12} />
+                                                                        Solicitar Ajuste
+                                                                    </button>
+                                                                    {upd.preview_url && (
+                                                                        <a 
+                                                                            href={upd.preview_url} 
+                                                                            target="_blank" 
+                                                                            rel="noreferrer"
+                                                                            onClick={() => {
+                                                                                if (!upd.viewed_at) {
+                                                                                    markAsViewed(upd.id);
+                                                                                    // Update local state to immediately reflect the color change
+                                                                                    setData(prev => prev ? {
+                                                                                        ...prev,
+                                                                                        allUpdates: prev.allUpdates.map(u => u.id === upd.id ? { ...u, viewed_at: new Date().toISOString() } : u)
+                                                                                    } : prev);
+                                                                                }
+                                                                            }}
+                                                                            className={`h-8 px-3 rounded-lg border flex items-center gap-1.5 transition-all ml-auto text-[11px] font-bold ${
+                                                                                !upd.viewed_at 
+                                                                                ? 'bg-primary text-primary-foreground border-primary shadow-[0_0_15px_rgba(245,168,0,0.3)] animate-pulse-slow' 
+                                                                                : 'bg-secondary/50 border-border text-muted-foreground hover:text-primary'
+                                                                            }`}
+                                                                        >
+                                                                            <LinkIcon size={12} /> Visualizar Build
+                                                                        </a>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Denial Feedback View */}
+                                                            {upd.status === 'denied' && upd.feedback && (
+                                                                <div className="mt-2 bg-red-500/5 border border-red-500/20 rounded-lg p-3 animate-in slide-in-from-left-2">
+                                                                    <div className="flex items-center gap-1.5 text-red-500 font-bold text-[9px] uppercase tracking-wider mb-1"><AlertCircle size={10} /> Sua restrição:</div>
+                                                                    <p className="text-[12px] text-foreground font-medium leading-relaxed italic">"{upd.feedback}"</p>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Rejection Form Modal-ish */}
+                                                            {showUpdateRejectionFormId === upd.id && (
+                                                                <div className="mt-4 bg-background border border-red-500/30 rounded-xl p-4 shadow-xl animate-in zoom-in-95">
+                                                                    <label className="text-[11px] font-bold text-red-500 uppercase mb-2 block">O que precisa ser ajustado?</label>
+                                                                    <textarea
+                                                                        autoFocus
+                                                                        rows={3}
+                                                                        value={updateRejectionFeedback}
+                                                                        onChange={e => setUpdateRejectionFeedback(e.target.value)}
+                                                                        placeholder="Descreva detalhadamente o que você gostaria de alterar nesta build..."
+                                                                        className="w-full bg-secondary/20 border border-border rounded-lg p-3 text-[13px] text-foreground focus:border-red-500/50 outline-none resize-none"
+                                                                    />
+                                                                    <div className="flex justify-end gap-2 mt-4">
+                                                                        <button 
+                                                                            onClick={() => setShowUpdateRejectionFormId(null)}
+                                                                            className="px-4 py-1.5 text-[11px] font-bold text-muted-foreground hover:text-foreground"
+                                                                        >
+                                                                            Cancelar
+                                                                        </button>
+                                                                        <button 
+                                                                            disabled={!updateRejectionFeedback.trim() || approvingUpdateId === upd.id}
+                                                                            onClick={() => handleUpdateStatus(upd.id, 'denied', updateRejectionFeedback)}
+                                                                            className="px-4 py-1.5 bg-red-500 text-white rounded-lg text-[11px] font-bold hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20 flex items-center gap-1.5"
+                                                                        >
+                                                                            {approvingUpdateId === upd.id && <Loader2 size={12} className="animate-spin" />}
+                                                                            Confirmar Restrição
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -563,6 +666,9 @@ export default function DashboardPage() {
                     </div>
                 </div>
             )}
+
+            {/* Virtual Assistant */}
+            <NordyAssistant project={project} />
         </div>
     )
 }

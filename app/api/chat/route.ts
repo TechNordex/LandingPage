@@ -30,7 +30,7 @@ async function getOrUploadPdf() {
 
 export async function POST(request: Request) {
     try {
-        const { messages } = await request.json()
+        const { messages, context } = await request.json()
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return NextResponse.json({ error: "Mensagens inválidas." }, { status: 400 })
@@ -49,6 +49,8 @@ export async function POST(request: Request) {
 
         const lastMessage = recentMessages[recentMessages.length - 1]
 
+        const portalContext = context ? ` CONTEXTO DO PORTAL: ${context}` : ''
+
         const ai = getAI()
         const chat = ai.chats.create({
             model: "gemini-2.5-flash",
@@ -56,8 +58,9 @@ export async function POST(request: Request) {
             config: {
                 systemInstruction: `Você é o assistente virtual da Nordex Tech, uma empresa de tecnologia nordestina. Seu nome é Nordy.
 Seja sempre simpático, acolhedor e use linguagem leve e descontraída, mas profissional.
-Use APENAS as informações do documento PDF fornecido para responder sobre a empresa.
-Se a pergunta não estiver relacionada ao documento, responda com simpatia dizendo que só pode ajudar com informações sobre a Nordex Tech.
+Use APENAS as informações do documento PDF fornecido para responder sobre a empresa.${portalContext}
+Se estiver no contexto do portal, você pode ajudar o cliente a entender o progresso do projeto dele.
+Se a pergunta não estiver relacionada ao documento ou ao contexto do portal, responda com simpatia dizendo que só pode ajudar com informações sobre a Nordex Tech ou o projeto atual.
 Seja CONCISO: responda em no máximo 5 frases. Vá direto ao ponto.
 Se o usuário quiser falar com um humano, pedir um orçamento detalhado, agendar uma reunião ou se você não souber responder algo, sugira sempre que ele entre em contato com nossa equipe pelo WhatsApp através do link: https://wa.me/5581984889683 ou pelo e-mail: contato@nordex.tech
 

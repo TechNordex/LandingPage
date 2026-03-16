@@ -10,7 +10,7 @@ export async function GET() {
 
     try {
         const result = await db.query(`
-      SELECT id, email, name, role, created_at
+      SELECT id, email, name, role, position, avatar_url, bio, created_at
       FROM portal_users
       ORDER BY name ASC
     `)
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { name, email, password, role = 'client' } = await req.json()
+        const { name, email, password, role = 'client', position, avatar_url, bio } = await req.json()
         if (!name || !email || !password) {
             return NextResponse.json({ error: 'Nome, email e senha são obrigatórios' }, { status: 400 })
         }
@@ -38,10 +38,10 @@ export async function POST(req: NextRequest) {
         }
 
         const result = await db.query(
-            `INSERT INTO portal_users (name, email, password_hash, role)
-       VALUES ($1, $2, crypt($3, gen_salt('bf', 10)), $4)
-       RETURNING id, email, name, role, created_at`,
-            [name, email.toLowerCase().trim(), password, role]
+            `INSERT INTO portal_users (name, email, password_hash, role, position, avatar_url, bio)
+       VALUES ($1, $2, crypt($3, gen_salt('bf', 10)), $4, $5, $6, $7)
+       RETURNING id, email, name, role, position, avatar_url, bio, created_at`,
+            [name, email.toLowerCase().trim(), password, role, position || 'Membro da Equipe', avatar_url || null, bio || null]
         )
         return NextResponse.json({ user: result.rows[0] }, { status: 201 })
     } catch (error: any) {
@@ -60,7 +60,7 @@ export async function PUT(req: NextRequest) {
     }
 
     try {
-        const { id, name, email, password, role } = await req.json()
+        const { id, name, email, password, role, position, avatar_url, bio } = await req.json()
 
         if (!id) {
             return NextResponse.json({ error: 'ID do usuário é obrigatório' }, { status: 400 })
@@ -70,15 +70,15 @@ export async function PUT(req: NextRequest) {
             return NextResponse.json({ error: 'Role inválida' }, { status: 400 })
         }
 
-        let query = `UPDATE portal_users SET name = $1, email = $2, role = $3`
-        const values: any[] = [name, email.toLowerCase().trim(), role]
+        let query = `UPDATE portal_users SET name = $1, email = $2, role = $3, position = $4, avatar_url = $5, bio = $6`
+        const values: any[] = [name, email.toLowerCase().trim(), role, position, avatar_url, bio]
 
         if (password) {
-            query += `, password_hash = crypt($4, gen_salt('bf', 10))`
+            query += `, password_hash = crypt($7, gen_salt('bf', 10))`
             values.push(password)
         }
 
-        query += ` WHERE id = $${values.length + 1} RETURNING id, email, name, role, created_at`
+        query += ` WHERE id = $${values.length + 1} RETURNING id, email, name, role, position, avatar_url, bio, created_at`
         values.push(id)
 
         const result = await db.query(query, values)

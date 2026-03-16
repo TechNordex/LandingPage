@@ -9,17 +9,14 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { project_id, stage, title, message, preview_url } = await req.json()
+        const { project_id, stage, title, message, preview_url, hours_spent } = await req.json()
         if (!project_id || !stage || !title) {
             return NextResponse.json({ error: 'project_id, stage e title são obrigatórios' }, { status: 400 })
         }
 
-        await db.query('BEGIN')
-
-        await db.query(
-            `INSERT INTO project_updates (project_id, stage, title, message)
-       VALUES ($1, $2, $3, $4)`,
-            [project_id, stage, title, message || null]
+        const result = await db.query(
+            'INSERT INTO project_updates (project_id, stage, title, message, preview_url, hours_spent, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+            [project_id, stage, title, message || null, preview_url || null, hours_spent || null, session.id]
         )
 
         // Build the UPDATE query for the project

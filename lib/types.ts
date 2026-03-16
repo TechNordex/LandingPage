@@ -12,7 +12,17 @@ export interface PortalUser {
   email: string
   name: string
   role: UserRole
+  position?: string
+  avatar_url?: string
+  bio?: string
   created_at: string
+}
+
+export interface ProjectAssignment {
+  id: string
+  project_id: string
+  user_id: string
+  assigned_at: string
 }
 
 export interface Project {
@@ -28,7 +38,11 @@ export interface Project {
   current_stage: number
   created_at: string
   updated_at: string
+  estimated_hours?: number
+  stage_url?: string | null
+  prod_url?: string | null
   updates?: ProjectUpdate[]
+  squad?: { id: string, name: string, avatar_url: string, position: string }[]
 }
 
 export interface ProjectUpdate {
@@ -38,6 +52,11 @@ export interface ProjectUpdate {
   title: string
   message: string | null
   client_note?: string | null
+  status: 'pending' | 'authorized' | 'denied'
+  feedback?: string | null
+  viewed_at?: string | null
+  preview_url?: string | null
+  hours_spent?: number
   created_at: string
 }
 

@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     const session = await getSession()
     if (!session || session.role !== 'admin') {
         return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
     }
+
+    const { searchParams } = new URL(req.url)
+    const showTrash = searchParams.get('trash') === 'true'
 
     try {
         const result = await db.query(`
@@ -15,14 +18,23 @@ export async function GET() {
         u.name as client_name,
         u.email as client_email,
         COALESCE(
-          json_agg(pu ORDER BY pu.created_at DESC) FILTER (WHERE pu.id IS NOT NULL),
+          (
+            SELECT json_agg(update_data)
+            FROM (
+              SELECT pu.*, cu.name as creator_name
+              FROM project_updates pu
+              LEFT JOIN portal_users cu ON pu.created_by = cu.id
+              WHERE pu.project_id = p.id
+              ORDER BY pu.created_at DESC
+            ) update_data
+          ),
           '[]'
         ) as updates
       FROM projects p
-      JOIN portal_users u ON p.client_id = u.id
-      LEFT JOIN project_updates pu ON pu.project_id = p.id
+      LEFT JOIN portal_users u ON p.client_id = u.id
+      WHERE ${showTrash ? 'p.deleted_at IS NOT NULL' : 'p.deleted_at IS NULL'}
       GROUP BY p.id, u.name, u.email
-      ORDER BY p.updated_at DESC
+      ORDER BY ${showTrash ? 'p.deleted_at DESC' : 'p.updated_at DESC'}
     `)
         return NextResponse.json({ projects: result.rows })
     } catch (error) {
@@ -38,20 +50,31 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { client_id, name, description, preview_url } = await req.json()
+        const body = await req.json()
+        const { client_id, name, description, preview_url, estimated_hours, action, id } = body
+
+        // Handle Restore
+        if (action === 'restore' && id) {
+            const result = await db.query(
+                `UPDATE projects SET deleted_at = NULL, updated_at = NOW() WHERE id = $1 RETURNING *`,
+                [id]
+            )
+            return NextResponse.json({ project: result.rows[0] })
+        }
+
         if (!client_id || !name) {
             return NextResponse.json({ error: 'client_id e name são obrigatórios' }, { status: 400 })
         }
 
         const result = await db.query(
-            `INSERT INTO projects (client_id, name, description, preview_url)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-            [client_id, name, description || null, preview_url || null]
+            `INSERT INTO projects (client_id, name, description, preview_url, estimated_hours, stage_url, prod_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [client_id, name, description || null, preview_url || null, estimated_hours || null, body.stage_url || null, body.prod_url || null]
         )
         return NextResponse.json({ project: result.rows[0] }, { status: 201 })
     } catch (error) {
         console.error('[admin/projects POST]', error)
-        return NextResponse.json({ error: 'Erro ao criar projeto' }, { status: 500 })
+        return NextResponse.json({ error: 'Erro ao criar/restaurar projeto' }, { status: 500 })
     }
 }
 
@@ -62,16 +85,17 @@ export async function PUT(req: NextRequest) {
     }
 
     try {
-        const { id, name, description, preview_url } = await req.json()
+        const body = await req.json()
+        const { id, name, description, preview_url, estimated_hours, stage_url, prod_url } = body
         if (!id || !name) {
             return NextResponse.json({ error: 'id e name são obrigatórios para edição' }, { status: 400 })
         }
 
         const result = await db.query(
             `UPDATE projects 
-             SET name = $1, description = $2, preview_url = $3, updated_at = NOW() 
-             WHERE id = $4 RETURNING *`,
-            [name, description || null, preview_url || null, id]
+             SET name = $1, description = $2, preview_url = $3, estimated_hours = $4, stage_url = $5, prod_url = $6, updated_at = NOW() 
+             WHERE id = $7 RETURNING *`,
+            [name, description || null, preview_url || null, estimated_hours || null, body.stage_url || null, body.prod_url || null, id]
         )
         
         if (result.rows.length === 0) {
@@ -82,5 +106,33 @@ export async function PUT(req: NextRequest) {
     } catch (error) {
         console.error('[admin/projects PUT]', error)
         return NextResponse.json({ error: 'Erro ao atualizar projeto' }, { status: 500 })
+    }
+}
+
+export async function DELETE(req: NextRequest) {
+    const session = await getSession()
+    if (!session || session.role !== 'admin') {
+        return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
+    }
+
+    try {
+        const { searchParams } = new URL(req.url)
+        const id = searchParams.get('id')
+        const permanent = searchParams.get('permanent') === 'true'
+
+        if (!id) {
+            return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 })
+        }
+
+        if (permanent) {
+            await db.query('DELETE FROM projects WHERE id = $1', [id])
+            return NextResponse.json({ message: 'Projeto excluído permanentemente' })
+        } else {
+            await db.query('UPDATE projects SET deleted_at = NOW() WHERE id = $1', [id])
+            return NextResponse.json({ message: 'Projeto movido para a lixeira' })
+        }
+    } catch (error) {
+        console.error('[admin/projects DELETE]', error)
+        return NextResponse.json({ error: 'Erro ao excluir projeto' }, { status: 500 })
     }
 }

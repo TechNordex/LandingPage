@@ -1,0 +1,21 @@
+
+--- USERS ---
+{"id":"678eb158-f3de-456c-bcda-0944ec0cf00a","name":"Adson Vicente","email":"adson.vicente@nordex.tech","role":"admin"}
+{"id":"7eabd076-04e9-4211-9f2e-b6bbb2661fe5","name":"adson","email":"adson@teste","role":"client"}
+{"id":"2bb0628b-3b98-4130-998e-ea74498b9282","name":"Admin Nordex","email":"admin@nordextech.com","role":"client"}
+{"id":"dadf5472-e067-465b-8c1f-0a3569770b12","name":"Gustavo montenegro","email":"gustavo.montenegro@nordex.tech","role":"admin"}
+{"id":"ae8ebba5-4b6a-4d3e-ac07-5636e6bc9d6f","name":"Nutrizig","email":"nutrizig@teste.com","role":"client"}
+{"id":"9afd3f54-7c7e-413c-ab21-c4be73c3f7a7","name":"Deyvid Silva","email":"deyvid.silva@nordex.tech","role":"admin"}
+
+--- PROJECTS ---
+{"id":"6c484c9d-68aa-4d37-9ec1-3c229503b02d","name":"adson teste","client_id":"7eabd076-04e9-4211-9f2e-b6bbb2661fe5","preview_status":"approved","deleted_at":null,"current_stage":1}
+{"id":"45dea742-869d-4739-b306-072be2008736","name":"teste","client_id":"7eabd076-04e9-4211-9f2e-b6bbb2661fe5","preview_status":"pending","deleted_at":"2026-03-16T14:00:59.400Z","current_stage":1}
+
+--- UPDATES ---
+{"id":"f296ca16-f730-49b8-bdf7-f8995b48e404","project_id":"45dea742-869d-4739-b306-072be2008736","stage":1,"title":"começo"}
+{"id":"3042e6e7-8c52-4d3d-8762-d17278cc78ed","project_id":"45dea742-869d-4739-b306-072be2008736","stage":1,"title":"sdfasdfasdfa"}
+{"id":"45e9868a-e3d2-4db0-add5-8d9d73e1b4c3","project_id":"45dea742-869d-4739-b306-072be2008736","stage":1,"title":"fasdfasd"}
+{"id":"d0e9fa82-788e-4ffe-9212-bd734e616e51","project_id":"45dea742-869d-4739-b306-072be2008736","stage":1,"title":"teste2"}
+{"id":"adf62ce2-4cc2-483c-9f66-a562df360904","project_id":"45dea742-869d-4739-b306-072be2008736","stage":1,"title":"vc concordou"}
+{"id":"675985f7-24bc-4021-9819-2aa2a9b0dd5d","project_id":"45dea742-869d-4739-b306-072be2008736","stage":1,"title":"testando o stage"}
+{"id":"6515aa18-18a6-466b-a233-bd4954b498f8","project_id":"6c484c9d-68aa-4d37-9ec1-3c229503b02d","stage":1,"title":"inicio"}

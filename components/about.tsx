@@ -8,6 +8,7 @@
 import Image from "next/image"
 import { CheckCircle2 } from "lucide-react"
 import { AnimateOnScroll } from "@/components/animate-on-scroll"
+import { NordexGlobe } from "@/components/nordex-globe"
 
 const values = [
   "Tecnologia acessível para empresas de todos os tamanhos",
@@ -23,14 +24,8 @@ export function About() {
         {/* Visual side — slides in from left */}
         <AnimateOnScroll animation="slide-right">
           <div className="relative">
-            <div className="relative flex items-center justify-center rounded-2xl overflow-hidden border border-border bg-card aspect-square max-w-md mx-auto lg:mx-0 p-10">
-              <Image
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png"
-                alt="Nordex Tech — empresa de tecnologia"
-                width={320}
-                height={320}
-                className="object-contain w-full h-full"
-              />
+            <div className="relative flex items-center justify-center rounded-2xl overflow-hidden border border-border bg-card aspect-square max-w-md mx-auto lg:mx-0">
+              <NordexGlobe />
             </div>
 
             {/* Side tag */}
@@ -51,7 +46,7 @@ export function About() {
               className="text-3xl md:text-4xl font-bold text-foreground text-balance mb-6"
               style={{ fontFamily: "var(--font-space-grotesk)" }}
             >
-              Tecnologia nordestina com alcance nacional
+              Tecnologia nordestina com alcance mundial
             </h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
               A <span className="text-foreground font-semibold">Nordex Tech</span> nasceu com um propósito claro: levar soluções tecnológicas de alta qualidade para empresas que querem evoluir. Somos uma empresa de tecnologia com raízes no Nordeste do Brasil e visão voltada para o futuro.
