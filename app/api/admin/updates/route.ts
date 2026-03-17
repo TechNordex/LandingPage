@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { sendUpdateNotification } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
     const session = await getSession()
@@ -14,14 +15,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'project_id, stage e title são obrigatórios' }, { status: 400 })
         }
 
-        const result = await db.query(
-            'INSERT INTO project_updates (project_id, stage, title, message, preview_url, hours_spent, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-            [project_id, stage, title, message || null, preview_url || null, hours_spent || null, session.id]
+        // Insert the update
+        await db.query(
+            'INSERT INTO project_updates (project_id, stage, title, message, preview_url, hours_spent, created_by, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+            [project_id, stage, title, message || null, preview_url || null, hours_spent || null, session.id, 'pending']
         )
 
-        // Build the UPDATE query for the project
-        // If a preview_url is provided → reset status to 'pending' (new link needs evaluation)
-        // If preview_url is explicitly empty string → clear it and set status to 'none'
+        // Update the project stage / preview URL
         const hasNewUrl = preview_url && preview_url.trim() !== ''
         const clearUrl = preview_url === ''
 
@@ -36,15 +36,48 @@ export async function POST(req: NextRequest) {
         }
 
         updateQuery += ` WHERE id = $1`
-
         await db.query(updateQuery, queryParams)
-        await db.query('COMMIT')
+
+        // ── Send email notification (non-blocking) ─────────────────────────
+        void (async () => {
+            try {
+                // Fetch project + client info
+                const projRes = await db.query(`
+                    SELECT 
+                        p.name AS project_name,
+                        u.name AS client_name,
+                        u.email AS client_email,
+                        author.name AS author_name
+                    FROM projects p
+                    LEFT JOIN portal_users u ON u.id = p.client_id
+                    LEFT JOIN portal_users author ON author.id = $2
+                    WHERE p.id = $1
+                `, [project_id, session.id])
+
+                if (projRes.rows.length > 0) {
+                    const row = projRes.rows[0]
+                    if (row.client_email) {
+                        await sendUpdateNotification({
+                            clientName: row.client_name || 'Cliente',
+                            clientEmail: row.client_email,
+                            projectName: row.project_name,
+                            updateTitle: title,
+                            updateMessage: message || undefined,
+                            updateStage: stage,
+                            authorName: row.author_name || 'Equipe Nordex',
+                        })
+                    }
+                }
+            } catch (emailErr) {
+                // Never fail the main request because of email
+                console.error('[updates POST] Email error (non-fatal):', emailErr)
+            }
+        })()
+        // ──────────────────────────────────────────────────────────────────
 
         return NextResponse.json({ success: true }, { status: 201 })
-    } catch (error) {
-        await db.query('ROLLBACK')
+    } catch (error: any) {
         console.error('[admin/updates POST]', error)
-        return NextResponse.json({ error: 'Erro ao postar atualização' }, { status: 500 })
+        return NextResponse.json({ error: error.message || 'Erro ao postar atualização' }, { status: 500 })
     }
 }
-

@@ -94,7 +94,7 @@ export function Solutions() {
                   {/* Hover glow — CSS handles opacity transition */}
                   <div
                     className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-400 pointer-events-none"
-                    style={{ background: "radial-gradient(circle at top left, oklch(0.78 0.18 80), transparent 70%)" }}
+                    style={{ background: "radial-gradient(circle, #F5A800 0%, transparent 70%)" }}
                   />
 
                   {/* Icon with micro-rotation on hover */}

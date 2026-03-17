@@ -6,13 +6,16 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { LogOut, Plus, Activity, Send, Loader2, X, Edit, Users, FolderKanban, CheckCircle2, Clock, MessageSquareText, FileEdit, Link as LinkIcon, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown, AlertCircle, Trash2, Search, SlidersHorizontal, Briefcase, FileDown, Upload } from 'lucide-react'
+import { LogOut, Plus, Activity, Send, Loader2, X, Edit, Users, FolderKanban, CheckCircle2, Clock, MessageSquareText, FileEdit, Link as LinkIcon, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown, AlertCircle, Trash2, Search, SlidersHorizontal, Briefcase, FileDown, Upload, Mail, Eye, RefreshCw, LayoutDashboard, BarChart2, UsersRound, Timer, TrendingUp, Menu } from 'lucide-react'
 import type { Project, PortalUser, ProjectUpdate } from '@/lib/types'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar } from 'recharts'
+
 import { STAGES } from '@/lib/types'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import ImageCropperModal from '@/components/common/ImageCropper'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
+import { useRef } from 'react'
 
 export default function AdminPage() {
     const router = useRouter()
@@ -20,7 +23,8 @@ export default function AdminPage() {
     const [users, setUsers] = useState<PortalUser[]>([])
     const [loading, setLoading] = useState(true)
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'users' | 'trash' | 'team' | 'reports'>('overview')
+    const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'users' | 'trash' | 'team' | 'reports' | 'email'>('overview')
+    const [usersMenuExpanded, setUsersMenuExpanded] = useState(false)
     const [trashProjects, setTrashProjects] = useState<Project[]>([])
     const [teamStats, setTeamStats] = useState<{ workload: any[], recentContributions: any[] }>({ workload: [], recentContributions: [] })
     const [editingTeamMember, setEditingTeamMember] = useState<PortalUser | null>(null)
@@ -34,6 +38,7 @@ export default function AdminPage() {
     const [currentUser, setCurrentUser] = useState<PortalUser | null>(null)
     const [uploadLoading, setUploadLoading] = useState(false)
     const [showAddTeamMember, setShowAddTeamMember] = useState(false)
+    const [sidebarOpen, setSidebarOpen] = useState(false)
     const [resetTourLoading, setResetTourLoading] = useState<string | null>(null)
     
     // Image Cropper States
@@ -96,6 +101,54 @@ export default function AdminPage() {
     const [updatePreviewUrl, setUpdatePreviewUrl] = useState('')
     const [updateHours, setUpdateHours] = useState<string>('')
     const [lastUpdateStage, setLastUpdateStage] = useState<number | null>(null)
+
+    // Email template states
+    const [emailHtml, setEmailHtml] = useState('')
+    const [emailSubject, setEmailSubject] = useState('')
+    const [emailTemplateLoading, setEmailTemplateLoading] = useState(false)
+    const [emailTemplateSaving, setEmailTemplateSaving] = useState(false)
+    const [emailPreview, setEmailPreview] = useState(false)
+    const [emailSaved, setEmailSaved] = useState(false)
+
+    const loadEmailTemplate = async () => {
+        setEmailTemplateLoading(true)
+        try {
+            const res = await fetch('/api/admin/email-template')
+            const data = await res.json()
+            if (data.template) {
+                setEmailHtml(data.template.html || '')
+                setEmailSubject(data.template.subject || '')
+            } else {
+                setEmailHtml('')
+                setEmailSubject('')
+            }
+        } catch { } finally { setEmailTemplateLoading(false) }
+    }
+
+    const saveEmailTemplate = async () => {
+        setEmailTemplateSaving(true)
+        try {
+            await fetch('/api/admin/email-template', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ html: emailHtml, subject: emailSubject || null })
+            })
+            setEmailSaved(true)
+            setTimeout(() => setEmailSaved(false), 3000)
+        } catch { alert('Erro ao salvar template') } finally { setEmailTemplateSaving(false) }
+    }
+
+    const resetEmailTemplate = async () => {
+        if (!confirm('Redefinir para o template padrão? Suas alterações serão perdidas.')) return
+        await fetch('/api/admin/email-template', { method: 'DELETE' })
+        loadEmailTemplate()
+    }
+
+    const reportRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        if (activeTab === 'email') loadEmailTemplate()
+    }, [activeTab])
 
     const filteredGroups = useMemo(() => {
         // --- Derived Data ---
@@ -269,7 +322,10 @@ export default function AdminPage() {
                     hours_spent: updateHours ? Number(updateHours) : undefined
                  }),
             })
-            if (!res.ok) throw new Error()
+            if (!res.ok) {
+                const errorData = await res.json()
+                throw new Error(errorData.error || 'Erro ao atualizar estágio')
+            }
             setIsUpdating(null)
             setUpdateTitle('')
             setUpdateMessage('')
@@ -277,8 +333,8 @@ export default function AdminPage() {
             setUpdateHours('')
             setExpandedProjectId(projectId) // KEEP EXPANDED TRUE AFTER POST
             fetchData()
-        } catch (err) {
-            alert('Erro ao atualizar estágio')
+        } catch (err: any) {
+            alert(err.message || 'Erro ao atualizar estágio')
         }
     }
 
@@ -320,7 +376,7 @@ export default function AdminPage() {
             })
             const data = await res.json()
             if (res.status === 409 && data.warning) {
-                // Show project warning — require force confirm
+                // Show project warning — require force confirm
                 setDeleteWarning({ message: data.message, projects: data.projects })
             } else if (!res.ok) {
                 alert(data.error || 'Erro ao excluir usuário')
@@ -521,367 +577,477 @@ export default function AdminPage() {
         }
     }
 
+    const handleExportPDF = async () => {
+        if (!reportRef.current) return;
+        
+        try {
+            setLoading(true);
+            const element = reportRef.current;
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#0a0a0a',
+                onclone: (clonedDoc) => {
+                    // ULTIMATE v5: Exhaustive CSS Purge & SVG Correction
+                    const colorRegex = /(oklch|oklab|lab)\((?:[^()]+|\([^()]*\))*\)/g;
+                    
+                    // 1. Disable all external stylesheets to prevent html2canvas from parsing them
+                    const links = clonedDoc.querySelectorAll('link[rel="stylesheet"]');
+                    links.forEach(link => link.remove());
+
+                    // 2. Extract and sanitize ALL rules from real document and inject into clone
+                    let sanitizedCSS = '';
+                    try {
+                        for (let i = 0; i < document.styleSheets.length; i++) {
+                            const sheet = document.styleSheets[i];
+                            try {
+                                const rules = sheet.cssRules;
+                                for (let j = 0; j < rules.length; j++) {
+                                    sanitizedCSS += rules[j].cssText + '\n';
+                                }
+                            } catch (e) {
+                                // Fallback for CORS-protected sheets: just don't include them or log it
+                                console.warn('Could not access stylesheet rules', sheet.href);
+                            }
+                        }
+                        sanitizedCSS = sanitizedCSS.replace(colorRegex, '#F5A800');
+                        
+                        const styleTag = clonedDoc.createElement('style');
+                        styleTag.textContent = sanitizedCSS;
+                        clonedDoc.head.appendChild(styleTag);
+                    } catch (e) {
+                        console.error('Ultimate CSS purge failed', e);
+                    }
+
+                    // 3. Deep-clean all elements for inline styles, SVG attributes, and computed styles
+                    const elements = clonedDoc.querySelectorAll('*');
+                    elements.forEach(el => {
+                        const HTMLElement = el as HTMLElement;
+                        
+                        // Fix inline styles attribute
+                        const inlineStyle = HTMLElement.getAttribute('style');
+                        if (inlineStyle && (inlineStyle.includes('okl') || inlineStyle.includes('lab('))) {
+                            HTMLElement.setAttribute('style', inlineStyle.replace(colorRegex, '#F5A800'));
+                        }
+
+                        // Fix SVG specific attributes (Recharts gradients use <stop stop-color="...">)
+                        const tagName = el.tagName.toLowerCase();
+                        if (tagName === 'path' || tagName === 'circle' || tagName === 'rect' || tagName === 'stop' || tagName === 'line') {
+                            ['fill', 'stroke', 'stop-color'].forEach(attr => {
+                                const val = el.getAttribute(attr);
+                                if (val && (val.includes('okl') || val.includes('lab('))) {
+                                    el.setAttribute(attr, '#F5A800');
+                                }
+                            });
+                        }
+
+                        // 4. Force override computed styles
+                        try {
+                            const computed = window.getComputedStyle(HTMLElement);
+                            const props = ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 'backgroundImage', 'boxShadow'] as const;
+                            
+                            props.forEach(prop => {
+                                const val = computed[prop as any];
+                                if (val && (val.includes('okl') || val.includes('lab('))) {
+                                    let fallback = '#F5A800';
+                                    if (prop === 'color') fallback = '#f2f2f2';
+                                    else if (prop === 'backgroundColor') fallback = '#171717';
+                                    else if (prop === 'borderColor') fallback = '#3f3f3f';
+                                    HTMLElement.style.setProperty(prop, fallback, 'important');
+                                }
+                            });
+                        } catch (e) {}
+                    });
+                }
+            });
+            
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            
+            // Add a header/title to the PDF
+            pdf.setFontSize(18);
+            pdf.setTextColor(245, 168, 0); // Nordex Primary
+            const title = reportProjectId === 'all' 
+                ? 'Relatório de Performance Geral - Nordex' 
+                : `Relatório de Performance: ${projects.find(p => p.id === reportProjectId)?.name} - Nordex`;
+            
+            pdf.text(title, 10, 15);
+            pdf.setFontSize(10);
+            pdf.setTextColor(150, 150, 150);
+            pdf.text(`Período: ${format(new Date(reportStartDate), 'dd/MM/yyyy')} até ${format(new Date(reportEndDate), 'dd/MM/yyyy')}`, 10, 22);
+            pdf.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 10, 27);
+
+            pdf.addImage(imgData, 'PNG', 0, 35, pdfWidth, pdfHeight);
+            
+            const filename = reportProjectId === 'all' 
+                ? `relatorio_geral_${format(new Date(), 'yyyyMMdd')}.pdf`
+                : `relatorio_${projects.find(p => p.id === reportProjectId)?.name.toLowerCase().replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
+            
+            pdf.save(filename);
+        } catch (error) {
+            console.error('Erro ao exportar PDF:', error);
+            alert('Erro ao gerar o PDF. Verifique o console para mais detalhes.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     if (loading && projects.length === 0) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
 
     const totalProjects = projects.length;
     const totalClients = users.filter((u) => u.role === 'client').length;
     const completedProjects = projects.filter((p) => p.current_stage === 6).length;
-    const activeProjects = totalProjects - completedProjects;
+    const activeProjects = totalProjects - completedProjects
+    
+    const totalHoursTracked = projects.reduce((acc, p) => acc + (p.updates || []).reduce((s: number, u: any) => s + (u.hours_spent || 0), 0), 0)
+    const totalUpdatesAllTime = projects.reduce((acc, p) => acc + (p.updates?.length || 0), 0)
+    const thisMonth = new Date()
+    const updatesThisMonth = projects.reduce((acc, p) => acc + (p.updates || []).filter((u: any) => {
+        const d = new Date(u.created_at); return d.getMonth() === thisMonth.getMonth() && d.getFullYear() === thisMonth.getFullYear()
+    }).length, 0)
+    const pendingApproval = projects.filter(p => p.preview_status === 'pending').length
+
+    const NAV = [
+        { tab: 'overview', label: 'Geral', icon: <LayoutDashboard size={18} /> },
+        { tab: 'projects', label: 'Esteiras de desenvolvimento', icon: <FolderKanban size={18} /> },
+        { tab: 'users', label: 'Usuários', icon: <Users size={18} /> },
+        { tab: 'team', label: 'Equipe', icon: <UsersRound size={18} />, iconSize: 14, isSub: true },
+        { tab: 'reports', label: 'Relatórios', icon: <BarChart2 size={18} /> },
+        { tab: 'email', label: 'Configuração de Emails', icon: <Mail size={18} /> },
+        { tab: 'trash', label: `Lixeira${trashProjects.length > 0 ? ` (${trashProjects.length})` : ''}`, icon: <Trash2 size={18} /> },
+    ] as const
 
     return (
-        <div className="min-h-screen bg-background pb-20 text-foreground selection:bg-primary/30">
-            <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Image 
-                            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png" 
-                            alt="Nordex" 
-                            width={160} 
-                            height={44} 
-                            className="h-8 sm:h-9 w-auto opacity-100" 
-                            priority
-                        />
-                        <div className="h-6 w-px bg-border hidden sm:block mx-1" />
-                        <span className="bg-primary/10 text-primary text-[11px] font-bold px-2 py-0.5 border border-primary/20 uppercase tracking-widest rounded-sm">ADMIN PANEL</span>
-                    </div>
-                    <div className="flex items-center gap-6">
-                        {currentUser && (
-                            <div className="flex items-center gap-3 pr-4 border-r border-border h-10">
-                                <div className="text-right hidden sm:block">
-                                    <p className="text-[13px] font-bold text-foreground leading-none">{currentUser.name}</p>
-                                    <p className="text-[10px] text-primary font-bold uppercase tracking-tighter">{currentUser.position || 'Administrador'}</p>
-                                </div>
-                                <div className="w-9 h-9 rounded-full bg-secondary border border-border overflow-hidden shrink-0 aspect-square">
-                                    {currentUser?.avatar_url ? (
-                                        <img src={currentUser.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-primary/50 text-[10px] font-bold">
-                                            {currentUser?.name?.charAt(0) || 'A'}
+        <div className="min-h-screen bg-background text-foreground flex selection:bg-primary/30">
+
+            {/* ---------- SIDEBAR ---------- */}
+            {sidebarOpen && (
+                <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} />
+            )}
+            <aside className={`fixed lg:static top-0 left-0 h-full lg:h-auto z-40 w-64 flex-shrink-0 bg-card border-r border-border flex flex-col transition-transform duration-300 ${
+                sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+            }`}>
+                {/* Logo */}
+                <div className="px-6 py-5 border-b border-border flex items-center gap-3">
+                    <Image
+                        src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png"
+                        alt="Nordex" width={130} height={36} className="h-7 w-auto opacity-100" priority
+                    />
+                    <span className="bg-primary/10 text-primary text-[9px] font-black px-1.5 py-0.5 border border-primary/20 uppercase tracking-widest rounded-sm">ADM</span>
+                </div>
+
+                {/* Nav */}
+                <nav className="flex-1 py-4 overflow-y-auto custom-scrollbar">
+                    <p className="px-5 mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">Menu</p>
+                    <div className="space-y-0.5 px-2">
+                        {NAV.map((navItem) => {
+                            const { tab, label, icon, isSub } = navItem as any;
+                            
+                            // Handle sub-menu visibility
+                            if (isSub && !usersMenuExpanded) return null;
+
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => { 
+                                        if (isSub) setUsersMenuExpanded(true);
+                                        setActiveTab(tab as any); 
+                                        setSidebarOpen(false);
+                                    }}
+                                    className={`w-full text-left py-2.5 rounded-xl font-semibold flex items-center transition-all duration-150 ${
+                                        isSub ? 'pl-11 pr-4 mt-0.5 text-[12px] bg-secondary/20' : 'px-4 gap-3 text-[13px]'
+                                    } ${
+                                        activeTab === tab && !isSub // Only highlight main tab if active, or if it's the active sub tab
+                                            ? 'bg-primary text-primary-foreground shadow-[0_0_16px_rgba(245,168,0,0.25)]'
+                                            : activeTab === tab && isSub
+                                            ? 'bg-primary/20 text-primary shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                                    }`}
+                                >
+                                    {isSub && <div className="w-1.5 h-1.5 rounded-full bg-primary mr-2.5" />}
+                                    {!isSub && icon}
+                                    <span className={!isSub ? 'flex-1' : 'flex items-center gap-2 flex-1'}>
+                                        {isSub && icon}{label}
+                                    </span>
+                                    
+                                    {/* Sub-menu Toggle Arrow */}
+                                    {tab === 'users' && (
+                                        <div 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                                setUsersMenuExpanded(!usersMenuExpanded);
+                                            }}
+                                            className={`transition-transform duration-200 p-1.5 -mr-1.5 rounded-md hover:bg-black/10 flex items-center justify-center ${usersMenuExpanded ? 'rotate-180' : ''}`}
+                                        >
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="6 9 12 15 18 9"></polyline>
+                                            </svg>
                                         </div>
                                     )}
-                                </div>
-                            </div>
-                        )}
-                        <button onClick={handleLogout} className="flex flex-col text-right hover:text-primary transition-colors group">
-                            <span className="text-[13px] font-medium leading-none flex items-center gap-2 group-hover:gap-3 transition-all">Desconectar <LogOut size={14} /></span>
-                            <span className="text-[10px] text-muted-foreground mr-5">Fim de Sessão</span>
-                        </button>
-                    </div>
-                </div>
-            </header>
 
-            <main className="max-w-7xl mx-auto px-6 py-8">
-                {/* Custom Elegant Tab System */}
-                <div className="flex items-center justify-center mb-10 pb-4 border-b border-border/30 overflow-x-auto no-scrollbar scroll-smooth">
-                    <div className="inline-flex items-center bg-card/40 backdrop-blur-md border border-border/50 rounded-xl p-1.5 shadow-2xl flex-nowrap min-w-max">
-                        <button 
-                            onClick={() => setActiveTab('overview')} 
-                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'overview' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
-                        >
-                            Visão Geral
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('projects')} 
-                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'projects' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
-                        >
-                            Esteiras & Diários
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('users')} 
-                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'users' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
-                        >
-                            Painel de Usuários
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('team')} 
-                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'team' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
-                        >
-                            Gestão de Equipe
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('reports')} 
-                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'reports' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
-                        >
-                            Relatórios
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('trash')} 
-                            className={`px-6 py-2.5 rounded-lg text-[13px] font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${activeTab === 'trash' ? 'bg-primary text-primary-foreground shadow-[0_0_20px_rgba(245,168,0,0.3)]' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
-                        >
-                            Lixeira {trashProjects.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-background/20 rounded-full text-[10px]">{trashProjects.length}</span>}
-                        </button>
+                                    {tab === 'projects' && pendingApproval > 0 && (
+                                        <span className="ml-auto w-5 h-5 bg-amber-500 text-[10px] font-black text-black rounded-full flex items-center justify-center">{pendingApproval}</span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
+                </nav>
+
+                {/* User + Logout */}
+                <div className="border-t border-border p-4">
+                    {currentUser && (
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-9 h-9 rounded-full bg-secondary border border-border overflow-hidden shrink-0">
+                                {currentUser.avatar_url
+                                    ? <img src={currentUser.avatar_url} alt="" className="w-full h-full object-cover" />
+                                    : <div className="w-full h-full flex items-center justify-center text-primary font-bold text-sm">{currentUser.name.charAt(0)}</div>}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[13px] font-bold leading-none truncate">{currentUser.name}</p>
+                                <p className="text-[10px] text-primary font-bold uppercase tracking-tighter mt-0.5">{currentUser.position || 'Administrador'}</p>
+                            </div>
+                        </div>
+                    )}
+                    <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-semibold text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all">
+                        <LogOut size={14} /> Desconectar
+                    </button>
                 </div>
+            </aside>
+
+            {/* ---------- CONTENT ---------- */}
+            <div className="flex-1 min-w-0 flex flex-col">
+                {/* Mobile topbar */}
+                <div className="lg:hidden flex items-center gap-4 px-5 py-3 border-b border-border bg-card sticky top-0 z-20">
+                    <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground">
+                        <Menu size={22} />
+                    </button>
+                    <span className="text-[13px] font-bold">{NAV.find(n => n.tab === activeTab)?.label}</span>
+                </div>
+
+                <div className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar">
 
                 {activeTab === 'overview' && (
-                    <div className="space-y-8 animate-fade-in">
-                        {/* KPI Cards (Matches global dark style) */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                    <div className="space-y-6 animate-fade-in">
+                        {/* Page title */}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-black tracking-tight text-foreground">Visão Geral</h2>
+                                <p className="text-[13px] text-muted-foreground mt-0.5">Métricas operacionais em tempo real</p>
+                            </div>
+                            {/* Actions removed as requested - should only be in contextual tabs */}
+                        </div>
+
+                        {/* KPI Cards — Agency Metrics */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                             {[
-                                { lab: 'Projetos Ativos', val: totalProjects, sub: `${trashProjects.length} na lixeira`, icon: <FolderKanban size={100} />, col: 'primary' },
-                                { lab: 'Pool de Clientes', val: totalClients, sub: 'Clientes cadastrados', icon: <Users size={100} />, col: 'primary' },
-                                { lab: 'Pipeline Ativa', val: activeProjects, sub: 'Em desenvolvimento', icon: <Activity size={100} />, col: 'blue-500' },
-                                { lab: 'Concluídos', val: completedProjects, sub: 'Total finalizado', icon: <CheckCircle2 size={100} />, col: 'green-500' },
+                                { label: 'Projetos Ativos', value: activeProjects, sub: `${totalProjects} no total`, icon: <FolderKanban size={20} />, color: 'primary' },
+                                { label: 'Horas Registradas', value: `${totalHoursTracked}h`, sub: 'Esforço da equipe', icon: <Timer size={20} />, color: 'blue' },
+                                { label: 'Updates este Mês', value: updatesThisMonth, sub: `${totalUpdatesAllTime} no total`, icon: <TrendingUp size={20} />, color: 'green' },
+                                { label: 'Aguardando Aprovação', value: pendingApproval, sub: 'Projetos em homo.', icon: <Clock size={20} />, color: pendingApproval > 0 ? 'amber' : 'muted' },
                             ].map((kpi, i) => (
-                                <div key={i} className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden group">
-                                    <div className="absolute right-0 top-0 opacity-[0.02] -translate-y-4 translate-x-4 max-w-[80px] pointer-events-none">{kpi.icon}</div>
-                                    <div className="relative z-10">
-                                        <p className="text-[12px] font-semibold text-muted-foreground mb-1 tracking-wider uppercase">{kpi.lab}</p>
-                                        <div className="flex items-baseline gap-2 mb-4">
-                                            <p className={`text-4xl font-bold tracking-tighter ${kpi.col === 'primary' ? 'text-primary' : kpi.col === 'green-500' ? 'text-green-500' : 'text-blue-500'}`}>
-                                                {kpi.val}
-                                            </p>
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground/60 font-medium uppercase tracking-widest">{kpi.sub}</p>
+                                <div key={i} className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-3 hover:border-primary/20 transition-colors">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                                        kpi.color === 'primary' ? 'bg-primary/10 text-primary' :
+                                        kpi.color === 'blue' ? 'bg-blue-500/10 text-blue-400' :
+                                        kpi.color === 'green' ? 'bg-green-500/10 text-green-400' :
+                                        kpi.color === 'amber' ? 'bg-amber-500/10 text-amber-400' :
+                                        'bg-secondary text-muted-foreground'
+                                    }`}>{kpi.icon}</div>
+                                    <div>
+                                        <p className={`text-3xl font-black tracking-tighter ${
+                                            kpi.color === 'primary' ? 'text-primary' :
+                                            kpi.color === 'blue' ? 'text-blue-400' :
+                                            kpi.color === 'green' ? 'text-green-400' :
+                                            kpi.color === 'amber' ? 'text-amber-400' :
+                                            'text-foreground'
+                                        }`}>{kpi.value}</p>
+                                        <p className="text-[11px] font-bold text-foreground mt-0.5">{kpi.label}</p>
+                                        <p className="text-[10px] text-muted-foreground mt-0.5">{kpi.sub}</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Alert System Center */}
-                            <div className="lg:col-span-2 space-y-6">
-                                <div className="bg-card border border-border rounded-2xl overflow-hidden p-[1px]">
-                                    <div className="bg-background rounded-2xl p-6 sm:p-8">
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
-                                            <h3 className="text-[18px] font-semibold tracking-tight text-foreground flex items-center gap-3">
-                                                <AlertCircle size={20} className="text-primary"/> Centro de Resposta e Alertas
-                                            </h3>
-                                            <div className="flex gap-3">
-                                                <button onClick={() => setShowNewClient(true)} className="h-10 px-4 rounded-lg bg-secondary border border-border text-[13px] font-medium hover:bg-white/5 inline-flex items-center gap-2 relative group overflow-hidden">
-                                                    <span className="relative z-10"><Users size={14} className="inline mr-1" /> Novo Usuário</span>
-                                                </button>
-                                                <button onClick={() => setShowNewProject(true)} className="h-10 px-5 rounded-lg bg-primary text-primary-foreground font-semibold text-[13px] hover:opacity-90 inline-flex items-center gap-2 shadow-[0_0_15px_rgba(245,168,0,0.15)]">
-                                                    <span>Novo Projeto</span>
-                                                </button>
+                            {/* Alert Center */}
+                            <div className="lg:col-span-2">
+                                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                                    <div className="p-5 border-b border-border flex items-center justify-between">
+                                        <h3 className="text-[14px] font-bold text-foreground flex items-center gap-2"><AlertCircle size={16} className="text-primary" /> Centro de Alertas</h3>
+                                        {/* Actions removed from overview alerts */}
+                                    </div>
+                                    <div className="p-5 space-y-3">
+                                        {projects.filter(p => (p.preview_status === 'rejected' || p.preview_status === 'pending' || p.updates?.some((u: any) => u.status === 'denied'))).length === 0 ? (
+                                            <div className="text-[13px] text-muted-foreground text-center py-8 border border-dashed border-border/50 rounded-xl">
+                                                <CheckCircle2 size={28} className="mx-auto mb-2 opacity-20 text-green-500" />
+                                                Todos os projetos estão em fluxo normal.
                                             </div>
-                                        </div>
-                                        {/* Dynamic Alerts List */}
-                                        <div className="space-y-4">
-                                            {projects.filter(p => (
-                                                p.preview_status === 'rejected' || 
-                                                p.preview_status === 'pending' ||
-                                                p.updates?.some(u => u.status === 'denied')
-                                            )).length === 0 ? (
-                                                <div className="text-[14px] text-muted-foreground text-center py-10 border border-dashed border-border/50 rounded-xl bg-secondary/10">
-                                                    <CheckCircle2 size={32} className="mx-auto mb-3 opacity-20 text-green-500" />
-                                                    Não há alertas operacionais pendentes. Todos os projetos estão em fluxo normal.
-                                                </div>
-                                            ) : (
-                                                <div className="grid gap-3">
-                                                    {/* Alertas de Projeto (Global) */}
-                                                    {projects.filter(p => p.preview_status === 'rejected').map(p => (
-                                                        <div key={`proj-rej-${p.id}`} className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center justify-between animate-in slide-in-from-top-2">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
-                                                                    <AlertCircle size={20} className="text-red-500" />
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-[14px] font-bold text-foreground">{p.name} — Revisão Geral Solicitada</p>
-                                                                    <p className="text-[12px] text-muted-foreground">O cliente solicitou ajustes na versão homologada.</p>
-                                                                </div>
+                                        ) : (
+                                            <>
+                                                {projects.filter(p => p.preview_status === 'rejected').map(p => (
+                                                    <div key={`rej-${p.id}`} className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center"><AlertCircle size={16} className="text-red-500" /></div>
+                                                            <div>
+                                                                <p className="text-[13px] font-bold">{p.name} — Ajuste Solicitado</p>
+                                                                <p className="text-[11px] text-muted-foreground">Cliente pediu revisão.</p>
                                                             </div>
-                                                            <button onClick={() => { setActiveTab('projects'); setExpandedProjectId(p.id); }} className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-[12px] font-bold rounded-lg transition-all">Ver Ajustes</button>
                                                         </div>
-                                                    ))}
-
-                                                    {/* Alertas de Updates (Granular) */}
-                                                    {projects.filter(p => p.preview_status !== 'rejected' && p.updates?.some(u => u.status === 'denied')).map(p => (
-                                                        <div key={`upd-den-${p.id}`} className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex items-center justify-between animate-in slide-in-from-top-2">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0">
-                                                                    <X size={20} className="text-rose-500" />
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-[14px] font-bold text-foreground">{p.name} — Entrega Recusada</p>
-                                                                    <p className="text-[12px] text-muted-foreground">Uma ou mais etapas foram negadas pelo cliente.</p>
-                                                                </div>
-                                                            </div>
-                                                            <button onClick={() => { setActiveTab('projects'); setExpandedProjectId(p.id); }} className="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[12px] font-bold rounded-lg transition-all">Ver Updates</button>
-                                                        </div>
-                                                    ))}
-
-                                                    {/* Alertas de Homologação (Pending) */}
-                                                    {projects.filter(p => p.preview_status === 'pending').map(p => (
-                                                        <div key={`proj-pen-${p.id}`} className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between animate-in slide-in-from-top-2">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-                                                                    <Clock size={20} className="text-amber-500" />
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-[14px] font-bold text-foreground">{p.name} — Em Homologação</p>
-                                                                    <p className="text-[12px] text-muted-foreground">Aguardando decisão do cliente há {Math.floor((Date.now() - new Date(p.updated_at).getTime()) / (1000 * 60 * 60 * 24))} dias.</p>
-                                                                </div>
-                                                            </div>
-                                                            <button onClick={() => { setActiveTab('projects'); setExpandedProjectId(p.id); }} className="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-[12px] font-bold rounded-lg transition-all">Ir para Diário</button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Workload Distribution Chart with Photos */}
-                                <div className="bg-card border border-border rounded-3xl p-8 relative overflow-hidden flex flex-col min-h-[450px]">
-                                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] pointer-events-none" />
-                                    <div className="flex items-center justify-between mb-8 relative z-10">
-                                        <div className="space-y-1">
-                                            <h3 className="text-xl font-bold tracking-tight text-foreground">Distribuição de Recursos</h3>
-                                            <p className="text-[13px] text-muted-foreground">Projetos por membro da equipe</p>
-                                        </div>
-                                        <Briefcase className="text-primary/40" size={20} />
-                                    </div>
-
-                                    <div className="flex-1 relative z-10">
-                                        <ResponsiveContainer width="100%" height={280}>
-                                            <AreaChart data={teamStats.workload}>
-                                                <defs>
-                                                    <linearGradient id="colorWork" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
-                                                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                                                <XAxis 
-                                                    dataKey="name" 
-                                                    axisLine={false} 
-                                                    tickLine={false} 
-                                                    tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
-                                                    dy={10}
-                                                />
-                                                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
-                                                <RechartsTooltip 
-                                                    content={({ active, payload }) => {
-                                                        if (active && payload && payload.length) {
-                                                            const data = payload[0].payload;
-                                                            return (
-                                                                <div className="bg-card/90 backdrop-blur-md border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-4">
-                                                                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border border-primary/30">
-                                                                        {data.avatar_url ? (
-                                                                            <img src={data.avatar_url} alt={data.name} className="w-full h-full object-cover" />
-                                                                        ) : (
-                                                                            <span className="text-primary font-bold">{data.name.charAt(0)}</span>
-                                                                        )}
-                                                                    </div>
-                                                                    <div>
-                                                                        <p className="text-[13px] font-bold text-foreground">{data.name}</p>
-                                                                        <p className="text-[11px] text-primary">{data.project_count} Projetos Ativos</p>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    }}
-                                                />
-                                                <Area type="monotone" dataKey="project_count" stroke="var(--primary)" fillOpacity={1} fill="url(#colorWork)" strokeWidth={3} />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
-
-                                        {/* Visual Team Strip */}
-                                        <div className="mt-6 flex flex-wrap gap-4 items-center justify-center">
-                                            {teamStats.workload.map((member, idx) => (
-                                                <div key={idx} className="flex flex-col items-center gap-2 group cursor-help">
-                                                    <div className="w-10 h-10 rounded-full bg-secondary border-2 border-border group-hover:border-primary transition-all p-0.5 relative">
-                                                        {member.avatar_url ? (
-                                                            <img src={member.avatar_url} alt={member.name} className="w-full h-full rounded-full object-cover" />
-                                                        ) : (
-                                                            <div className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-                                                                {member.name.split(' ').map((n: string) => n[0]).join('')}
-                                                            </div>
-                                                        )}
-                                                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full border-2 border-background flex items-center justify-center text-[9px] font-black text-primary-foreground shadow-lg">
-                                                            {member.project_count}
-                                                        </div>
+                                                        <button onClick={() => { setActiveTab('projects'); setExpandedProjectId(p.id); }} className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-[11px] font-bold rounded-lg">Ver</button>
                                                     </div>
-                                                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight group-hover:text-foreground transition-colors">{member.name.split(' ')[0]}</span>
-                                                </div>
-                                            ))}
-                                        </div>
+                                                ))}
+                                                {projects.filter(p => p.preview_status !== 'rejected' && p.updates?.some((u: any) => u.status === 'denied')).map(p => (
+                                                    <div key={`den-${p.id}`} className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center"><X size={16} className="text-rose-500" /></div>
+                                                            <div>
+                                                                <p className="text-[13px] font-bold">{p.name} — Entrega Recusada</p>
+                                                                <p className="text-[11px] text-muted-foreground">Uma ou mais etapas foram negadas.</p>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => { setActiveTab('projects'); setExpandedProjectId(p.id); }} className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[11px] font-bold rounded-lg">Ver</button>
+                                                    </div>
+                                                ))}
+                                                {projects.filter(p => p.preview_status === 'pending').map(p => (
+                                                    <div key={`pen-${p.id}`} className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center"><Clock size={16} className="text-amber-500" /></div>
+                                                            <div>
+                                                                <p className="text-[13px] font-bold">{p.name} — Em Homologação</p>
+                                                                <p className="text-[11px] text-muted-foreground">Aguardando decisão do cliente.</p>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => { setActiveTab('projects'); setExpandedProjectId(p.id); }} className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-[11px] font-bold rounded-lg">Ver</button>
+                                                    </div>
+                                                ))}
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* Main Activity Chart */}
-                                <div className="bg-card border border-border rounded-2xl p-6 sm:p-8">
-                                    <div className="flex items-center justify-between mb-8">
-                                        <h4 className="text-[15px] font-bold text-foreground flex items-center gap-2">
-                                            <Activity size={18} className="text-primary"/> Intensidade Operacional (Updates)
-                                        </h4>
+                                {/* Hours by project table */}
+                                <div className="bg-card border border-border rounded-2xl overflow-hidden mt-6">
+                                    <div className="p-5 border-b border-border">
+                                        <h3 className="text-[14px] font-bold text-foreground flex items-center gap-2"><Timer size={16} className="text-primary" /> Horas por Projeto</h3>
+                                        <p className="text-[12px] text-muted-foreground mt-0.5">Esforço registrado via updates</p>
                                     </div>
-                                    <div className="h-[240px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={[
-                                                { name: 'Seg', val: 2 },
-                                                { name: 'Ter', val: 5 },
-                                                { name: 'Qua', val: 3 },
-                                                { name: 'Qui', val: 8 },
-                                                { name: 'Sex', val: projects.reduce((acc, p) => acc + (p.updates?.length || 0), 0) },
-                                            ]}>
-                                                <defs>
-                                                    <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="oklch(0.78 0.18 80)" stopOpacity={0.3}/>
-                                                        <stop offset="95%" stopColor="oklch(0.78 0.18 80)" stopOpacity={0}/>
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                                <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} />
-                                                <YAxis stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} />
-                                                <RechartsTooltip contentStyle={{ backgroundColor: 'oklch(0.17 0 0)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }} />
-                                                <Area type="monotone" dataKey="val" stroke="oklch(0.78 0.18 80)" fillOpacity={1} fill="url(#colorVal)" strokeWidth={3} />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
+                                    <div className="overflow-x-auto custom-scrollbar">
+                                        <table className="w-full text-left">
+                                            <thead><tr className="border-b border-border bg-secondary/30">
+                                                <th className="px-5 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Projeto</th>
+                                                <th className="px-5 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Horas Log.</th>
+                                                <th className="px-5 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Est.</th>
+                                                <th className="px-5 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Updates</th>
+                                                <th className="px-5 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fase</th>
+                                            </tr></thead>
+                                            <tbody className="divide-y divide-border">
+                                                {projects.slice(0, 8).map(p => {
+                                                    const hrs = (p.updates || []).reduce((s: number, u: any) => s + (u.hours_spent || 0), 0)
+                                                    const stage = STAGES.find(s => s.id === p.current_stage)
+                                                    return (
+                                                        <tr key={p.id} className="hover:bg-secondary/20 transition-colors cursor-pointer" onClick={() => { setActiveTab('projects'); setExpandedClientId(p.client_name || ''); setExpandedProjectId(p.id); }}>
+                                                            <td className="px-5 py-3">
+                                                                <p className="text-[13px] font-semibold text-foreground truncate max-w-[200px]">{p.name}</p>
+                                                                <p className="text-[11px] text-muted-foreground">{p.client_name}</p>
+                                                            </td>
+                                                            <td className="px-5 py-3 text-right">
+                                                                <span className={`text-[14px] font-black ${hrs > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}>{hrs > 0 ? `${hrs}h` : '—'}</span>
+                                                            </td>
+                                                            <td className="px-5 py-3 text-right">
+                                                                <span className="text-[13px] font-semibold text-muted-foreground">{p.estimated_hours ? `${p.estimated_hours}h` : '—'}</span>
+                                                            </td>
+                                                            <td className="px-5 py-3 text-right">
+                                                                <span className="text-[13px] font-bold text-foreground">{p.updates?.length || 0}</span>
+                                                            </td>
+                                                            <td className="px-5 py-3">
+                                                                <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded-full border border-primary/20">{stage?.label}</span>
+                                                            </td>
+                                                        </tr>
+                                                    )
+                                                })}
+                                            </tbody>
+                                        </table>
+                                        {projects.length === 0 && (
+                                            <p className="text-[13px] text-muted-foreground text-center py-8">Nenhum projeto cadastrado.</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Sidebar Analytics */}
+                            {/* Right column */}
                             <div className="space-y-6">
-                                <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 flex flex-col items-center">
-                                    <h4 className="text-[13px] font-bold text-muted-foreground uppercase tracking-widest mb-8 self-start">Distribuição por Etapa</h4>
-                                    <div className="h-[200px] w-full mb-6">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={STAGES.map(s => ({
-                                                        name: s.label,
-                                                        value: projects.filter(p => p.current_stage === s.id).length || 0.1
-                                                    }))}
-                                                    innerRadius={60}
-                                                    outerRadius={80}
-                                                    paddingAngle={5}
-                                                    dataKey="value"
-                                                >
-                                                    {STAGES.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={index === 0 ? 'oklch(0.78 0.18 80)' : `rgba(245,168,0,${0.2 + (index * 0.15)})`} />
-                                                    ))}
-                                                </Pie>
-                                                <RechartsTooltip />
-                                            </PieChart>
-                                        </ResponsiveContainer>
+                                {/* Team workload */}
+                                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                                    <div className="p-5 border-b border-border">
+                                        <h3 className="text-[14px] font-bold text-foreground flex items-center gap-2"><UsersRound size={16} className="text-primary" /> Carga da Equipe</h3>
                                     </div>
-                                    <div className="space-y-2 w-full">
-                                        {STAGES.map((s, i) => {
-                                            const count = projects.filter(p => p.current_stage === s.id).length;
-                                            return (
-                                                <div key={s.id} className="flex items-center justify-between text-[11px] font-semibold">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: i === 0 ? 'oklch(0.78 0.18 80)' : `rgba(245,168,0,${0.2 + (i * 0.15)})` }} />
-                                                        <span className="text-muted-foreground">{s.label}</span>
+                                    <div className="p-4 space-y-3">
+                                        {teamStats.workload.length === 0 ? (
+                                            <p className="text-[12px] text-muted-foreground text-center py-4">Nenhum membro cadastrado.</p>
+                                        ) : (
+                                            teamStats.workload.map((member: any, idx: number) => (
+                                                <div key={idx} className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-full bg-secondary border border-border overflow-hidden shrink-0">
+                                                        {member.avatar_url
+                                                            ? <img src={member.avatar_url} alt={member.name} className="w-full h-full rounded-full object-cover" />
+                                                            : <div className="w-full h-full flex items-center justify-center text-[11px] font-bold text-primary">{member.name.split(' ').map((n: string) => n[0]).join('')}</div>}
                                                     </div>
-                                                    <span className="text-foreground">{count}</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center justify-between">
+                                                            <p className="text-[12px] font-semibold text-foreground truncate">{member.name.split(' ')[0]}</p>
+                                                            <span className="text-[11px] font-black text-primary">{member.project_count} proj.</span>
+                                                        </div>
+                                                        <div className="mt-1.5 w-full bg-border/30 h-1 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, (member.project_count / Math.max(...teamStats.workload.map((m: any) => m.project_count), 1)) * 100)}%` }} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Stage distribution */}
+                                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                                    <div className="p-5 border-b border-border">
+                                        <h3 className="text-[14px] font-bold text-foreground">Distribuição por Fase</h3>
+                                    </div>
+                                    <div className="p-4 space-y-2">
+                                        {STAGES.map(s => {
+                                            const count = projects.filter(p => p.current_stage === s.id).length
+                                            const pct = projects.length > 0 ? (count / projects.length) * 100 : 0
+                                            return (
+                                                <div key={s.id}>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <span className="text-[11px] font-semibold text-muted-foreground">{s.label}</span>
+                                                        <span className="text-[11px] font-black text-foreground">{count}</span>
+                                                    </div>
+                                                    <div className="bg-border/30 h-1.5 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
+                                                    </div>
                                                 </div>
                                             )
                                         })}
                                     </div>
                                 </div>
 
-                                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 sm:p-8">
-                                    <h4 className="text-[13px] font-bold text-primary uppercase tracking-widest mb-4">Eficiência de Entrega</h4>
-                                    <p className="text-3xl font-bold text-foreground mb-1">
-                                        {totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0}%
-                                    </p>
-                                    <p className="text-[11px] text-muted-foreground leading-relaxed">Projetos que passaram por todas as fases e foram entregues com sucesso.</p>
-                                    <div className="mt-6 w-full bg-border/30 h-1.5 rounded-full overflow-hidden">
+                                {/* Delivery efficiency */}
+                                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
+                                    <p className="text-[11px] font-black text-primary uppercase tracking-widest mb-2">Eficiência de Entrega</p>
+                                    <p className="text-3xl font-black text-foreground">{totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0}%</p>
+                                    <p className="text-[11px] text-muted-foreground mt-1">Projetos entregues com sucesso</p>
+                                    <div className="mt-4 w-full bg-border/30 h-1.5 rounded-full overflow-hidden">
                                         <div className="bg-primary h-full transition-all duration-1000" style={{ width: `${totalProjects > 0 ? (completedProjects / totalProjects) * 100 : 0}%` }} />
                                     </div>
                                 </div>
@@ -892,7 +1058,8 @@ export default function AdminPage() {
 
                 {activeTab === 'projects' && (
                     <div className="animate-fade-in max-w-5xl mx-auto space-y-6">
-                        {/* ── Toolbar ── */}
+
+                        {/* á¢€‚¬á¢€‚¬ Toolbar á¢€‚¬á¢€‚¬ */}
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                             <div className="relative flex-1">
                                 <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
@@ -924,7 +1091,7 @@ export default function AdminPage() {
                             </div>
                         </div>
 
-                        {/* ── Empty State ── */}
+                        {/* á¢€‚¬á¢€‚¬ Empty State á¢€‚¬á¢€‚¬ */}
                         {projects.length === 0 ? (
                             <div className="text-center py-24 bg-card border border-border rounded-xl">
                                 <FolderKanban size={32} className="mx-auto text-muted-foreground mb-4 opacity-50" />
@@ -953,7 +1120,7 @@ export default function AdminPage() {
                                             'border-border'
                                         }`}>
 
-                                            {/* ── Client Card Header ── */}
+                                            {/* á¢€‚¬á¢€‚¬ Client Card Header á¢€‚¬á¢€‚¬ */}
                                             <div
                                                 onClick={() => setExpandedClientId(isClientExpanded ? null : group.clientName)}
                                                 className="w-full text-left bg-card hover:bg-card/80 transition-colors cursor-pointer"
@@ -993,7 +1160,7 @@ export default function AdminPage() {
                                                                     className="h-full rounded-full transition-all duration-1000"
                                                                     style={{
                                                                         width: `${progressPct}%`,
-                                                                        background: progressPct === 100 ? 'oklch(0.72 0.17 145)' : 'oklch(0.78 0.18 80)'
+                                                                        background: progressPct === 100 ? '#22c55e' : '#f5a800'
                                                                     }}
                                                                 />
                                                             </div>
@@ -1020,7 +1187,7 @@ export default function AdminPage() {
                                                 </div>
                                             </div>
 
-                                            {/* ── Expanded: Projects list ── */}
+                                            {/* á¢€‚¬á¢€‚¬ Expanded: Projects list á¢€‚¬á¢€‚¬ */}
                                             {isClientExpanded && (
                                                 <div className="border-t border-border/50 bg-background/50 p-4 sm:p-5 space-y-4 animate-in slide-in-from-top-2 duration-300">
                                                     {group.projects.map(proj => {
@@ -1203,7 +1370,7 @@ export default function AdminPage() {
                                                                                                     Etapa {upd.stage}
                                                                                                 </span>
                                                                                                 <span className="text-[11px] sm:text-[12px] font-medium text-muted-foreground">
-                                                                                                    {format(new Date(upd.created_at), "dd 'de' MMM 'às' HH:mm", { locale: ptBR })}
+                                                                                                    {format(new Date(upd.created_at), "dd 'de' MMM 'áƒ s' HH:mm", { locale: ptBR })}
                                                                                                 </span>
                                                                                             </div>
                                                                                             <h4 className="text-[15px] sm:text-[16px] font-semibold text-foreground mb-1">{upd.title}</h4>
@@ -1319,13 +1486,17 @@ export default function AdminPage() {
                                         className="bg-transparent text-[11px] font-bold px-3 py-1.5 outline-none text-muted-foreground"
                                     />
                                 </div>
-                                <button className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2 shadow-lg shadow-primary/20">
+                                <button 
+                                    onClick={handleExportPDF}
+                                    className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2 shadow-lg shadow-primary/20"
+                                >
                                     <FileDown size={16} /> Exportar
                                 </button>
                             </div>
                         </div>
 
-                        {/* Project Specific Deep Metrics */}
+                        <div ref={reportRef} className="space-y-8">
+                            {/* Project Specific Deep Metrics */}
                         {reportProjectId !== 'all' && projectSpecificStats && (
                             <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
                                 <div className="bg-card border border-border rounded-2xl p-6 flex flex-col md:flex-row gap-8">
@@ -1439,62 +1610,74 @@ export default function AdminPage() {
                             </div>
                         </div>
 
-                        {/* Distribution Charts in Reports */}
+                        {/* Pipeline Status Table + Team Workload */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="bg-card border border-border rounded-3xl p-8">
-                                <h4 className="text-[15px] font-black uppercase tracking-widest text-foreground mb-8">Status Atual da Pipeline (Filtrado)</h4>
-                                <div className="h-[300px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={STAGES.map(s => ({
-                                            name: s.label,
-                                            count: filteredReportProjects.filter(p => p.current_stage === s.id).length
-                                        }))}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
-                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} />
-                                            <RechartsTooltip cursor={{ fill: 'rgba(255,255,255,0.02)' }} contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px' }} />
-                                            <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={40} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                                <div className="p-6 border-b border-border">
+                                    <h4 className="text-[14px] font-bold text-foreground">Status da Pipeline (Filtrado)</h4>
+                                    <p className="text-[12px] text-muted-foreground mt-0.5">Projetos por fase no período</p>
+                                </div>
+                                <div className="p-4 space-y-3">
+                                    {STAGES.map(s => {
+                                        const count = filteredReportProjects.filter(p => p.current_stage === s.id).length
+                                        const pct = filteredReportProjects.length > 0 ? (count / filteredReportProjects.length) * 100 : 0
+                                        return (
+                                            <div key={s.id}>
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <span className="text-[12px] font-semibold text-foreground">{s.label}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[12px] font-black text-primary">{count}</span>
+                                                        <span className="text-[10px] text-muted-foreground">proj.</span>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-border/30 h-2 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                    {filteredReportProjects.length === 0 && (
+                                        <p className="text-[12px] text-muted-foreground text-center py-4">Nenhum projeto no período selecionado.</p>
+                                    )}
                                 </div>
                             </div>
 
-                            <div className="bg-card border border-border rounded-3xl p-8 flex flex-col items-center justify-center">
-                                <h4 className="text-[15px] font-black uppercase tracking-widest text-foreground mb-8 self-start">Comprometimento de Equipe</h4>
-                                <div className="h-[260px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={teamStats?.workload?.map(w => ({ name: w.name, value: Number(w.project_count) })) || []}
-                                                cx="50%" cy="50%"
-                                                innerRadius={60}
-                                                outerRadius={100}
-                                                paddingAngle={5}
-                                                dataKey="value"
-                                            >
-                                                {teamStats?.workload?.map((entry: any, index: number) => (
-                                                    <Cell key={`cell-${index}`} fill={`oklch(0.78 0.18 ${60 + (index * 40)})`} />
-                                                )) || []}
-                                            </Pie>
-                                            <RechartsTooltip />
-                                        </PieChart>
-                                    </ResponsiveContainer>
+                            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                                <div className="p-6 border-b border-border">
+                                    <h4 className="text-[14px] font-bold text-foreground">Comprometimento de Equipe</h4>
+                                    <p className="text-[12px] text-muted-foreground mt-0.5">Projetos ativos por membro</p>
                                 </div>
-                                <div className="mt-4 grid grid-cols-2 gap-4 w-full">
-                                    {teamStats?.workload?.map((w: any, i: number) => (
-                                        <div key={w.id} className="flex items-center justify-between text-[11px] font-bold">
-                                            <span className="text-muted-foreground flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: `oklch(0.78 0.18 ${60 + (i * 40)})` }} />
-                                                {w.name}
-                                            </span>
-                                            <span className="text-foreground">{w.project_count} proj.</span>
-                                        </div>
-                                    )) || []}
+                                <div className="p-4 space-y-4">
+                                    {teamStats?.workload?.length > 0 ? teamStats.workload.map((w: any, i: number) => {
+                                        const maxProj = Math.max(...teamStats.workload.map((m: any) => m.project_count), 1)
+                                        return (
+                                            <div key={w.id} className="flex items-center gap-4">
+                                                <div className="w-9 h-9 rounded-full bg-secondary border border-border overflow-hidden shrink-0">
+                                                    {w.avatar_url
+                                                        ? <img src={w.avatar_url} alt={w.name} className="w-full h-full rounded-full object-cover" />
+                                                        : <div className="w-full h-full flex items-center justify-center text-[11px] font-bold text-primary">{w.name.split(' ').map((n: string) => n[0]).join('')}</div>}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between mb-1.5">
+                                                        <p className="text-[12px] font-semibold text-foreground truncate">{w.name}</p>
+                                                        <span className="text-[12px] font-black text-primary">{w.project_count} proj.</span>
+                                                    </div>
+                                                    <div className="bg-border/30 h-1.5 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-primary rounded-full" style={{ width: `${(w.project_count / maxProj) * 100}%` }} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )
+                                    }) : (
+                                        <p className="text-[12px] text-muted-foreground text-center py-4">Nenhum membro com projetos ativos.</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     </div>
-                )}
+                </div>
+            )}
+
                 {activeTab === 'team' && (
                     <div className="animate-fade-in max-w-6xl mx-auto space-y-8 pb-20">
                         <div className="flex items-center justify-between">
@@ -1676,7 +1859,88 @@ export default function AdminPage() {
                         )}
                     </div>
                 )}
-            </main>
+
+                {activeTab === 'email' && (
+                    <div className="space-y-8 animate-fade-in">
+                        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                            {/* Header */}
+                            <div className="p-8 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <h2 className="text-xl font-bold text-foreground flex items-center gap-3"><Mail size={20} className="text-primary" /> Template de Email</h2>
+                                    <p className="text-[13px] text-muted-foreground mt-1">Personalize o email automático enviado ao cliente quando uma nova atualização é postada.</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button onClick={() => setEmailPreview(p => !p)} className="h-9 px-4 rounded-lg border border-border text-[13px] font-medium hover:bg-white/5 inline-flex items-center gap-2">
+                                        <Eye size={14} /> {emailPreview ? 'Editar' : 'Preview'}
+                                    </button>
+                                    <button onClick={resetEmailTemplate} className="h-9 px-4 rounded-lg border border-border text-[13px] font-medium hover:bg-white/5 inline-flex items-center gap-2 text-muted-foreground">
+                                        <RefreshCw size={14} /> Restaurar Padrão
+                                    </button>
+                                    <button onClick={saveEmailTemplate} disabled={emailTemplateSaving} className="h-9 px-5 rounded-lg bg-primary text-primary-foreground font-semibold text-[13px] hover:opacity-90 inline-flex items-center gap-2 shadow-[0_0_15px_rgba(245,168,0,0.15)] disabled:opacity-50">
+                                        {emailTemplateSaving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                                        {emailSaved ? 'Salvo!' : 'Salvar Template'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {emailTemplateLoading ? (
+                                <div className="flex items-center justify-center py-20"><Loader2 className="animate-spin text-primary" size={32} /></div>
+                            ) : (
+                                <div className="p-8">
+                                    <div className="mb-6">
+                                        <label className="block text-[12px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Assunto do Email</label>
+                                        <input
+                                            value={emailSubject}
+                                            onChange={e => setEmailSubject(e.target.value)}
+                                            placeholder="[{{projectName}}] Nova atualização: {{updateTitle}}"
+                                            className="w-full bg-secondary/30 border border-border rounded-lg px-4 py-2.5 text-[14px] text-foreground outline-none focus:border-primary/50 transition-colors font-mono"
+                                        />
+                                    </div>
+                                    <div className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                                        <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-3">Variáveis disponíveis</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {['{{clientName}}','{{projectName}}','{{updateTitle}}','{{updateMessage}}','{{updateStage}}','{{authorName}}','{{portalUrl}}'].map(v => (
+                                                <code key={v} className="text-[11px] bg-secondary/50 border border-border px-2 py-1 rounded font-mono text-primary">{v}</code>
+                                            ))}
+                                        </div>
+                                        <p className="text-[11px] text-muted-foreground mt-2">Use <code className="text-primary font-mono">{'{{#if updateMessage}}...{{/if}}'}</code> para blocos condicionais.</p>
+                                    </div>
+                                    {emailPreview ? (
+                                        <div className="border border-border rounded-xl overflow-hidden">
+                                            <div className="bg-secondary/20 px-4 py-2 border-b border-border flex items-center gap-2">
+                                                <Eye size={12} className="text-muted-foreground" />
+                                                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Preview (HTML renderizado)</span>
+                                            </div>
+                                            <iframe srcDoc={emailHtml || '<p style="color:#888;padding:40px;font-family:sans-serif">Nenhum template salvo ainda.</p>'} className="w-full h-[600px] bg-white" sandbox="allow-same-origin" />
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <label className="block text-[12px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Corpo do Email (HTML)</label>
+                                            <textarea value={emailHtml} onChange={e => setEmailHtml(e.target.value)} placeholder="Cole ou edite o HTML do email aqui..." rows={24} className="w-full bg-secondary/30 border border-border rounded-xl px-4 py-3 text-[12px] text-foreground outline-none focus:border-primary/50 transition-colors font-mono resize-y leading-relaxed" />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-card border border-border rounded-2xl p-8">
+                            <h3 className="text-[15px] font-bold text-foreground mb-4 flex items-center gap-2"><Mail size={16} className="text-primary" /> Como funciona</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                {[
+                                    { step: '1', title: 'Admin posta atualização', desc: 'Qualquer update em Esteiras de desenvolvimento dispara o fluxo automaticamente.' },
+                                    { step: '2', title: 'Email renderizado', desc: 'O sistema usa este template, substitui as variáveis com os dados reais do projeto.' },
+                                    { step: '3', title: 'Cliente recebe', desc: 'O email chega na caixa do cliente vindo de noreply@nordex.tech com link direto ao portal.' },
+                                ].map(item => (
+                                    <div key={item.step} className="bg-secondary/20 border border-border rounded-xl p-5">
+                                        <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary text-[13px] font-black mb-3">{item.step}</div>
+                                        <p className="text-[13px] font-semibold text-foreground mb-1">{item.title}</p>
+                                        <p className="text-[12px] text-muted-foreground">{item.desc}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
             {/* Project Delete Confirmation Pop-up */}
             {deletingProject && (
@@ -1692,7 +1956,7 @@ export default function AdminPage() {
                         <div className="text-[14px] text-muted-foreground leading-relaxed mb-6 space-y-4">
                             {permanentDelete ? (
                                 <p className="bg-red-500/10 p-3 rounded-lg text-red-400 font-bold border border-red-500/20">
-                                    AVISO CRÍTICO: Esta ação não pode ser desfeita. Todos os diários, atualizações e anotações do projeto "{deletingProject.name}" serão apagados para sempre.
+                                    AVISO CRáƒTICO: Esta ação não pode ser desfeita. Todos os diários, atualizações e anotações do projeto "{deletingProject.name}" serão apagados para sempre.
                                 </p>
                             ) : (
                                 <p>
@@ -1889,7 +2153,7 @@ export default function AdminPage() {
                             </div>
                             <div>
                                 <label className="block text-[11px] font-bold uppercase tracking-wide mb-1.5 text-primary">Nova Senha (deixe vazio para manter)</label>
-                                <input value={editUserPassword} onChange={e => setEditUserPassword(e.target.value)} type="password" placeholder="••••••••" className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-[14px] text-foreground focus:border-primary outline-none" />
+                                <input value={editUserPassword} onChange={e => setEditUserPassword(e.target.value)} type="password" placeholder="á¢‚¬¢á¢‚¬¢á¢‚¬¢á¢‚¬¢á¢‚¬¢á¢‚¬¢á¢‚¬¢á¢‚¬¢" className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-[14px] text-foreground focus:border-primary outline-none" />
                             </div>
                             <div className="pt-6 flex gap-3">
                                 <button type="button" onClick={() => setEditingUser(null)} className="flex-1 h-11 bg-secondary hover:bg-white/5 rounded-lg text-[13px] font-semibold transition-colors">Voltar</button>
@@ -2113,7 +2377,7 @@ export default function AdminPage() {
                 </div>
             )}
 
-            <ImageCropperModal 
+            <ImageCropperModal
                 open={showCropper}
                 onClose={() => {
                     setShowCropper(false);
@@ -2121,6 +2385,9 @@ export default function AdminPage() {
                 }}
                 onCropComplete={handleCropComplete}
             />
+                </div>
+            </div>
         </div>
     )
 }
+

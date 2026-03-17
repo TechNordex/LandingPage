@@ -46,7 +46,7 @@ export function About() {
               className="text-3xl md:text-4xl font-bold text-foreground text-balance mb-6"
               style={{ fontFamily: "var(--font-space-grotesk)" }}
             >
-              Tecnologia nordestina com alcance mundial
+              Do Nordeste para o mundo
             </h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
               A <span className="text-foreground font-semibold">Nordex Tech</span> nasceu com um propósito claro: levar soluções tecnológicas de alta qualidade para empresas que querem evoluir. Somos uma empresa de tecnologia com raízes no Nordeste do Brasil e visão voltada para o futuro.

@@ -77,7 +77,7 @@ export function Hero() {
       {/* Glow accent */}
       <div
         className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-10 pointer-events-none"
-        style={{ background: "radial-gradient(circle, oklch(0.78 0.18 80) 0%, transparent 70%)" }}
+        style={{ background: "radial-gradient(circle, #F5A800 0%, transparent 70%)" }}
       />
 
       {/* Main Content Wrapper (centered vertically) */}

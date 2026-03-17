@@ -67,7 +67,7 @@ export function ChatWidget() {
                 onClick={() => setOpen((v) => !v)}
                 aria-label="Abrir chat"
                 className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:opacity-90 transition-all duration-300 hover:scale-105 cursor-pointer"
-                style={{ boxShadow: "0 0 0 4px oklch(0.78 0.18 80 / 0.2)" }}
+                style={{ boxShadow: "0 0 0 4px rgba(245, 168, 0, 0.2)" }}
             >
                 {open ? <X size={22} /> : <MessageCircle size={22} />}
             </button>

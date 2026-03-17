@@ -16,7 +16,7 @@ interface Step {
     target?: string
 }
 
-export default function NordyAssistant({ project, tourCompleted }: { project: Project | null, tourCompleted?: boolean }) {
+export default function NordyAssistant({ project, tourCompleted, tourEnabled = true }: { project: Project | null, tourCompleted?: boolean, tourEnabled?: boolean }) {
     const [isOpen, setIsOpen] = useState(false)
     const [messages, setMessages] = useState<Message[]>([])
     const [input, setInput] = useState('')
@@ -35,12 +35,12 @@ export default function NordyAssistant({ project, tourCompleted }: { project: Pr
         },
         {
             title: "Ambientes de Visualização",
-            content: "Aqui no topo, você encontra os botões 'Stage' e 'Prod'. O Stage é para você testar as novidades em primeira mão e o Prod é o link oficial!",
+            content: "Aqui no menu lateral, ficam os botões 'Stage' e 'Prod'. O Stage é para você testar novidades em primeira mão, e o Prod é o link em produção!",
             target: "tour-env-links"
         },
         {
             title: "Squad Especialista",
-            content: "Logo abaixo, você vê quem são os especialistas cuidando de cada detalhe com carinho. Sua equipe está sempre a um clique!",
+            content: "Abaixo dos ambientes, você vê quem são os especialistas Nordex cuidando do seu projeto. Um clique revela o perfil deles!",
             target: "tour-squad"
         },
         {
@@ -50,7 +50,7 @@ export default function NordyAssistant({ project, tourCompleted }: { project: Pr
         },
         {
             title: "Histórico e Aprovações",
-            content: "No centro, postamos cada avanço. Você pode aprovar etapas ou solicitar ajustes. Sua opinião guia o projeto!",
+            content: "Neste painel principal, postamos cada avanço do desenvolvimento. Você pode aprovar etapas ou solicitar ajustes. Sua opinião guia o projeto!",
             target: "tour-updates"
         },
         {
@@ -61,14 +61,14 @@ export default function NordyAssistant({ project, tourCompleted }: { project: Pr
     ]
 
     useEffect(() => {
-        // Automatic Trigger: Only if NOT completed in DB and project exists
-        if (tourCompleted === false && project) {
+        // Automatic Trigger: Only if NOT completed in DB, project exists, and tour logic is enabled
+        if (tourCompleted === false && project && tourEnabled) {
             const timer = setTimeout(() => {
                 startTutorial()
             }, 1500)
             return () => clearTimeout(timer)
         }
-    }, [project, tourCompleted])
+    }, [project, tourCompleted, tourEnabled])
 
     const startTutorial = () => {
         setIsTutorial(true)

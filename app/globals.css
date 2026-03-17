@@ -8,44 +8,44 @@
    ============================================================ */
 :root {
   /* Brand palette (dark-first) */
-  --background: oklch(0.12 0 0);
-  --foreground: oklch(0.97 0 0);
-  --card: oklch(0.17 0 0);
-  --card-foreground: oklch(0.97 0 0);
-  --popover: oklch(0.17 0 0);
-  --popover-foreground: oklch(0.97 0 0);
-  --primary: oklch(0.78 0.18 80);
+  --background: #090909;
+  --foreground: #f2f2f2;
+  --card: #171717;
+  --card-foreground: #f2f2f2;
+  --popover: #171717;
+  --popover-foreground: #f2f2f2;
+  --primary: #F5A800;
   /* dourado #F5A800 */
-  --primary-foreground: oklch(0.12 0 0);
-  --secondary: oklch(0.22 0 0);
-  --secondary-foreground: oklch(0.97 0 0);
-  --muted: oklch(0.22 0 0);
-  --muted-foreground: oklch(0.60 0 0);
-  --accent: oklch(0.78 0.18 80);
-  --accent-foreground: oklch(0.12 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.97 0 0);
-  --border: oklch(0.26 0 0);
-  --input: oklch(0.22 0 0);
-  --ring: oklch(0.78 0.18 80);
-  --chart-1: oklch(0.78 0.18 80);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --primary-foreground: #090909;
+  --secondary: #262626;
+  --secondary-foreground: #f2f2f2;
+  --muted: #262626;
+  --muted-foreground: #737373;
+  --accent: #F5A800;
+  --accent-foreground: #090909;
+  --destructive: #e50000;
+  --destructive-foreground: #f2f2f2;
+  --border: #3f3f3f;
+  --input: #262626;
+  --ring: #F5A800;
+  --chart-1: #F5A800;
+  --chart-2: #008080;
+  --chart-3: #2f4f4f;
+  --chart-4: #ffbf00;
+  --chart-5: #ff8c00;
   --radius: 0.5rem;
-  --sidebar: oklch(0.15 0 0);
-  --sidebar-foreground: oklch(0.97 0 0);
-  --sidebar-primary: oklch(0.78 0.18 80);
-  --sidebar-primary-foreground: oklch(0.12 0 0);
-  --sidebar-accent: oklch(0.22 0 0);
-  --sidebar-accent-foreground: oklch(0.97 0 0);
-  --sidebar-border: oklch(0.26 0 0);
-  --sidebar-ring: oklch(0.78 0.18 80);
-  --gold: oklch(0.78 0.18 80);
-  --gold-light: oklch(0.85 0.16 85);
-  --surface: oklch(0.17 0 0);
-  --surface-hover: oklch(0.22 0 0);
+  --sidebar: #111111;
+  --sidebar-foreground: #f2f2f2;
+  --sidebar-primary: #F5A800;
+  --sidebar-primary-foreground: #090909;
+  --sidebar-accent: #262626;
+  --sidebar-accent-foreground: #f2f2f2;
+  --sidebar-border: #3f3f3f;
+  --sidebar-ring: #F5A800;
+  --gold: #F5A800;
+  --gold-light: #ffce00;
+  --surface: #171717;
+  --surface-hover: #262626;
 
   /* Animation timing — edit these to tune globally */
   --anim-duration: 0.65s;
@@ -276,7 +276,7 @@
 
 .card-hover:hover {
   transform: translateY(-5px);
-  box-shadow: 0 12px 40px -12px oklch(0.78 0.18 80 / 0.18);
+  box-shadow: 0 12px 40px -12px rgba(245, 168, 0, 0.18);
 }
 
 /* ============================================================
@@ -308,8 +308,35 @@
 }
 
 /* ============================================================
-   ACCESSIBILITY — respect user motion preferences
+   CUSTOM SCROLLBAR
+   Apply .custom-scrollbar to any overflow container for a themed look.
    ============================================================ */
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-light);
+}
+
+/* Firefox support */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) rgba(255, 255, 255, 0.05);
+}
 
 @media (prefers-reduced-motion: reduce) {
   .animate-on-scroll {

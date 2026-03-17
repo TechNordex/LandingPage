@@ -15,11 +15,11 @@ export function CtaBanner() {
         {/* Glows */}
         <div
           className="absolute -top-20 -left-20 w-80 h-80 rounded-full opacity-15 pointer-events-none"
-          style={{ background: "radial-gradient(circle, oklch(0.78 0.18 80), transparent 70%)" }}
+          style={{ background: "radial-gradient(circle, #F5A800, transparent 70%)" }}
         />
         <div
           className="absolute -bottom-20 -right-20 w-80 h-80 rounded-full opacity-10 pointer-events-none"
-          style={{ background: "radial-gradient(circle, oklch(0.78 0.18 80), transparent 70%)" }}
+          style={{ background: "radial-gradient(circle, #F5A800, transparent 70%)" }}
         />
 
         <AnimateOnScroll animation="fade-up">
