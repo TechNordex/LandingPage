@@ -3,71 +3,91 @@ import { db } from './db'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const DEFAULT_TEMPLATE = `
+export const DEFAULT_TEMPLATE = `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Nova Atualização do Projeto</title>
+  <title>Nova Atualização - Nordex Tech</title>
   <style>
-    body { margin: 0; padding: 0; background: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    .wrapper { max-width: 600px; margin: 40px auto; background: #111111; border: 1px solid #222; border-radius: 16px; overflow: hidden; }
-    .header { background: #111; padding: 32px 40px; border-bottom: 1px solid #222; }
-    .header img { height: 36px; }
-    .badge { display: inline-block; background: rgba(245,168,0,0.1); color: #f5a800; font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(245,168,0,0.2); margin-top: 12px; }
-    .body { padding: 40px; }
-    .greeting { font-size: 15px; color: #888; margin-bottom: 24px; }
-    .greeting strong { color: #fff; }
-    .update-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
-    .stage-label { font-size: 11px; font-weight: 700; color: #f5a800; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px; }
-    .update-title { font-size: 20px; font-weight: 700; color: #ffffff; margin: 0 0 12px; }
-    .update-message { font-size: 14px; color: #aaa; line-height: 1.7; margin: 0; }
-    .author-row { display: flex; align-items: center; gap: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #2a2a2a; }
-    .author-avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(245,168,0,0.15); border: 1px solid rgba(245,168,0,0.3); display: flex; align-items: center; justify-center: center; font-size: 14px; font-weight: 700; color: #f5a800; text-align: center; line-height: 36px; }
-    .author-name { font-size: 13px; font-weight: 600; color: #fff; }
-    .author-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.1em; }
-    .cta { text-align: center; margin: 32px 0; }
-    .cta a { display: inline-block; background: #f5a800; color: #000; font-size: 14px; font-weight: 700; padding: 14px 32px; border-radius: 8px; text-decoration: none; letter-spacing: 0.05em; }
-    .footer { padding: 24px 40px; border-top: 1px solid #1a1a1a; text-align: center; }
-    .footer p { font-size: 12px; color: #444; margin: 4px 0; }
-    .footer a { color: #666; text-decoration: none; }
-    .divider { height: 3px; background: linear-gradient(90deg, transparent, #f5a800, transparent); }
+    body { margin: 0; padding: 0; background-color: #050505; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+    .wrapper { max-width: 600px; margin: 40px auto; background-color: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+    .header { background: #0a0a0a; padding: 40px; text-align: center; border-bottom: 1px solid #1a1a1a; }
+    .header .logo-container { margin-bottom: 20px; }
+    .header .logo-container img { height: 42px; width: auto; }
+    .badge { display: inline-block; background: rgba(245,168,0,0.08); color: #f5a800; font-size: 10px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; padding: 6px 12px; border-radius: 100px; border: 1px solid rgba(245,168,0,0.15); margin-top: 4px; }
+    .content { padding: 48px 40px; }
+    .greeting { font-size: 16px; color: #a1a1aa; margin-bottom: 24px; line-height: 1.6; }
+    .greeting strong { color: #ffffff; font-weight: 700; }
+    .update-card { background: #111111; border: 1px solid #1e1e1e; border-radius: 20px; padding: 32px; margin-bottom: 32px; }
+    .stage-indicator { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+    .stage-dot { width: 8px; height: 8px; background: #f5a800; border-radius: 50%; box-shadow: 0 0 10px rgba(245,168,0,0.5); }
+    .stage-label { font-size: 11px; font-weight: 800; color: #f5a800; text-transform: uppercase; letter-spacing: 0.15em; }
+    .update-title { font-size: 22px; font-weight: 800; color: #ffffff; margin: 0 0 16px; letter-spacing: -0.01em; }
+    .update-message { font-size: 15px; color: #d4d4d8; line-height: 1.8; margin: 0; white-space: pre-wrap; }
+    .author-section { display: flex; align-items: center; margin-top: 28px; padding-top: 28px; border-top: 1px solid #1e1e1e; }
+    .author-avatar { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, rgba(245,168,0,0.2), #1a1a1a); border: 1px solid rgba(245,168,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 900; color: #f5a800; margin-right: 16px; }
+    .author-info { flex: 1; }
+    .author-name { font-size: 14px; font-weight: 700; color: #ffffff; margin-bottom: 2px; }
+    .author-role { font-size: 11px; color: #71717a; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    .cta-container { text-align: center; margin: 40px 0; }
+    .cta-button { display: inline-block; background: #f5a800; color: #000000; font-size: 15px; font-weight: 900; padding: 18px 44px; border-radius: 14px; text-decoration: none; letter-spacing: 0.02em; transition: all 0.3s ease; box-shadow: 0 10px 30px rgba(245,168,0,0.2); }
+    .footer { padding: 40px; background: #080808; border-top: 1px solid #151515; text-align: center; }
+    .footer p { font-size: 13px; color: #52525b; margin: 6px 0; line-height: 1.5; }
+    .footer strong { color: #d4d4d8; }
+    .footer a { color: #52525b; text-decoration: none; font-weight: 600; transition: color 0.2s; }
+    .footer a:hover { color: #f5a800; }
+    .divider-line { height: 4px; background: linear-gradient(90deg, #f5a800, #ffcc33); }
+    @media (max-width: 600px) {
+      .wrapper { margin: 0; border-radius: 0; border: none; }
+      .content { padding: 32px 24px; }
+      .header { padding: 32px 24px; }
+    }
   </style>
 </head>
 <body>
   <div class="wrapper">
-    <div class="divider"></div>
+    <div class="divider-line"></div>
     <div class="header">
-      <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png" alt="Nordex Tech" />
-      <div class="badge">Nova Atualização</div>
+      <div class="logo-container">
+        <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png" alt="Nordex Tech">
+      </div>
+      <div class="badge">Atualização de Projeto</div>
     </div>
-    <div class="body">
-      <p class="greeting">Olá, <strong>{{clientName}}</strong>! Seu projeto recebeu uma nova atualização.</p>
+    <div class="content">
+      <p class="greeting">Olá, <strong>{{clientName}}</strong>!</p>
+      <p class="greeting" style="margin-top:-14px;">Temos novidades empolgantes sobre a evolução do seu projeto na <strong>Nordex Tech</strong>.</p>
+      
       <div class="update-card">
-        <div class="stage-label">Etapa {{updateStage}}</div>
+        <div class="stage-indicator">
+          <div class="stage-dot"></div>
+          <div class="stage-label">Etapa {{updateStage}}</div>
+        </div>
         <h2 class="update-title">{{updateTitle}}</h2>
         {{#if updateMessage}}
         <p class="update-message">{{updateMessage}}</p>
         {{/if}}
-        <div class="author-row">
+        
+        <div class="author-section">
           <div class="author-avatar">{{authorInitial}}</div>
-          <div>
+          <div class="author-info">
             <div class="author-name">{{authorName}}</div>
-            <div class="author-label">Especialista Nordex</div>
+            <div class="author-role">Especialista Nordex Tech</div>
           </div>
         </div>
       </div>
-      <div class="cta">
-        <a href="{{portalUrl}}">Ver no Portal →</a>
+      
+      <div class="cta-container">
+        <a href="{{portalUrl}}" class="cta-button">Ver Detalhes no Portal do Cliente →</a>
       </div>
     </div>
     <div class="footer">
-      <p>Você recebeu este email porque é cliente da Nordex Tech.</p>
-      <p>Projeto: <strong style="color:#888">{{projectName}}</strong></p>
-      <p style="margin-top:12px"><a href="https://nordex.tech">nordex.tech</a></p>
+      <p>Você recebeu esta notificação pois é um cliente exclusivo da <strong>Nordex Tech</strong>.</p>
+      <p>Projeto: <strong>{{projectName}}</strong></p>
+      <p style="margin-top:20px;"><a href="https://nordex.tech" target="_blank">Acesse nosso site oficial</a></p>
+      <p style="font-size: 11px; margin-top: 10px; color: #3f3f46;">&copy; {{year}} Nordex Tech. Todos os direitos reservados.</p>
     </div>
-    <div class="divider"></div>
   </div>
 </body>
 </html>
@@ -117,8 +137,9 @@ export async function sendUpdateNotification({
             // Table may not exist yet — use default
         }
 
-        const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.nordex.tech/dashboard'
+        const portalUrl = (process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.nordex.tech').replace(/\/dashboard$/, '') + '/login'
         const authorInitial = authorName ? authorName.charAt(0).toUpperCase() : 'N'
+        const year = new Date().getFullYear().toString()
 
         const html = renderTemplate(templateHtml, {
             clientName,
@@ -129,6 +150,7 @@ export async function sendUpdateNotification({
             authorName,
             authorInitial,
             portalUrl,
+            year,
         })
 
         // Render subject if it's custom

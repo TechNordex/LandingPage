@@ -125,6 +125,11 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                 ? document.getElementById(tutorialSteps[tutorialStep].target!) 
                 : null
                 
+            // Dispatch event for external listening (e.g. to open mobile sidebar if target is inside it)
+            window.dispatchEvent(new CustomEvent('tour-step-changed', { 
+                detail: { targetId: tutorialSteps[tutorialStep].target, step: tutorialStep } 
+            }))
+
             if (targetEl) {
                 targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
                 // Re-sync after scroll animation finishes
@@ -237,12 +242,14 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                                 y: 0,
                                 top: spotlight 
                                     ? (window.innerWidth < 640 
-                                        ? 'auto' 
+                                        ? (bubblePos === 'top' ? 20 : 'auto') 
                                         : Math.max(20, Math.min(window.innerHeight - (bubblePos === 'top' ? 320 : 280), 
                                             bubblePos === 'top' ? spotlight.top - 280 : (bubblePos === 'bottom' ? spotlight.top + spotlight.height + 40 : spotlight.top + (spotlight.height / 2) - 130)
                                           )))
                                     : '50%',
-                                bottom: (window.innerWidth < 640 && spotlight) ? 40 : 'auto',
+                                bottom: spotlight && window.innerWidth < 640
+                                    ? (bubblePos === 'top' ? 'auto' : 24)
+                                    : 'auto',
                                 left: spotlight 
                                     ? (window.innerWidth < 640 
                                         ? '50%' 
@@ -308,7 +315,7 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 whileHover={{ scale: 1.1 }}
-                className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[110]"
+                className={`fixed z-[110] transition-all duration-300 ${isOpen ? 'bottom-4 right-4 sm:bottom-6 sm:right-6 lg:z-[100] opacity-0 pointer-events-none' : 'bottom-4 right-4 sm:bottom-6 sm:right-6 opacity-100'}`}
             >
                 <button
                     id="tour-nordy-trigger"
@@ -346,7 +353,7 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                         initial={{ opacity: 0, y: 50, scale: 0.9, x: 20 }}
                         animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
                         exit={{ opacity: 0, y: 50, scale: 0.9, x: 20 }}
-                        className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-[110] w-[calc(100vw-32px)] sm:w-[380px] h-[70vh] sm:h-[550px] bg-card border border-border rounded-2xl sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden backdrop-blur-xl"
+                        className="fixed bottom-0 right-0 z-[120] w-full h-[100dvh] sm:bottom-24 sm:right-6 sm:w-[380px] sm:h-[550px] bg-card sm:border sm:border-border rounded-none sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden backdrop-blur-xl"
                     >
                         {/* Header */}
                         <div className="p-3 sm:p-4 bg-primary text-primary-foreground flex items-center justify-between shadow-lg shrink-0">

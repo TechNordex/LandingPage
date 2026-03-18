@@ -44,7 +44,8 @@ export async function GET() {
                     feedback, 
                     viewed_at, 
                     preview_url, 
-                    created_at 
+                    created_at,
+                    revision_of
                  FROM project_updates 
                  WHERE project_id = ANY($1::uuid[]) 
                  ORDER BY created_at DESC`,

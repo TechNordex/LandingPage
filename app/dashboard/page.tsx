@@ -11,7 +11,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
     LogOut, ExternalLink, Loader2, Link as LinkIcon,
     FileText, Activity, Info, MessageSquareText,
-    Save, Check, X, ThumbsUp, ThumbsDown, Clock, AlertCircle, Users, Menu
+    Save, Check, X, ThumbsUp, ThumbsDown, Clock, AlertCircle, Users, Menu,
+    CheckCircle2, RefreshCw
 } from 'lucide-react'
 import { ProjectTracker } from '@/components/project-tracker'
 import type { Project, ProjectUpdate } from '@/lib/types'
@@ -121,7 +122,7 @@ export default function DashboardPage() {
                 if (jsonData.projects && jsonData.projects.length > 0) {
                     setActiveProjectId(jsonData.projects[0].id)
                 }
-                // Server-side check €” termsAccepted is per-user, not per-browser
+                // Server-side check ‚¬€ termsAccepted is per-user, not per-browser
                 if (!jsonData.termsAccepted) {
                     setShowWelcome(true)
                     triggerConfetti()
@@ -130,6 +131,19 @@ export default function DashboardPage() {
             .catch(() => router.push('/login'))
             .finally(() => setLoading(false))
     }, [router])
+
+    useEffect(() => {
+        const handleTourStep = (e: any) => {
+            const { targetId } = e.detail;
+            if (targetId === 'tour-env-links' || targetId === 'tour-squad') {
+                setSidebarOpen(true);
+            } else {
+                setSidebarOpen(false);
+            }
+        };
+        window.addEventListener('tour-step-changed', handleTourStep);
+        return () => window.removeEventListener('tour-step-changed', handleTourStep);
+    }, []);
 
     const triggerConfetti = () => {
         const end = Date.now() + 3000
@@ -147,7 +161,7 @@ export default function DashboardPage() {
         try {
             await fetch('/api/dashboard/accept-terms', { method: 'POST' })
         } catch {
-            // Non-critical €” popup is hidden client-side already
+            // Non-critical ‚¬€ popup is hidden client-side already
         }
     }
 
@@ -525,7 +539,7 @@ export default function DashboardPage() {
 
                                             {/* Metric 3 */}
                                             <div className="bg-secondary/30 rounded-xl border border-border/50 p-4 flex flex-col justify-center">
-                                                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Última Entrega</p>
+                                                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Ãšltima Entrega</p>
                                                 <p className="text-lg font-bold text-primary truncate leading-tight mt-1">{lastUpdateDate}</p>
                                             </div>
 
@@ -569,10 +583,21 @@ export default function DashboardPage() {
                                                             const isEditing = editingNoteId === upd.id
                                                             const hasNote = Boolean(upd.client_note)
 
+                                                            // Revision system: detect if this update is a correction of another
+                                                            const isCorrection = Boolean(upd.revision_of)
+                                                            const originalUpdate = isCorrection
+                                                                ? updates.find(u => u.id === upd.revision_of)
+                                                                : null
+                                                            // Detect if this update was superseded by a later correction
+                                                            const correctionUpdate = updates.find(u => u.revision_of === upd.id)
+                                                            const isSuperseded = Boolean(correctionUpdate)
+
                                                             return (
                                                                 <div key={upd.id} className="relative pl-8 animate-fade-in group">
-                                                                    {/* Timeline Dot */}
-                                                                    <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-card border-[3px] border-primary shadow-[0_0_10px_rgba(245,168,0,0.4)]" />
+                                                                    {/* Timeline Dot — blue for corrections, gold for regular */}
+                                                                    <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-card border-[3px] shadow-[0_0_10px_rgba(245,168,0,0.4)] ${
+                                                                        isCorrection ? 'border-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'border-primary'
+                                                                    }`} />
 
                                                                     {/* Update Content */}
                                                                     <div
@@ -606,9 +631,44 @@ export default function DashboardPage() {
                                                                                 {format(new Date(upd.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
                                                                             </span>
                                                                         </div>
-                                                                        <h4 className="text-[16px] font-semibold text-foreground mb-2">
+                                                                        <h4 className="text-[16px] font-semibold text-foreground mb-2 flex items-center gap-2">
                                                                             {upd.title}
+                                                                            {isSuperseded && (
+                                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-[9px] font-black uppercase tracking-wider">
+                                                                                    <CheckCircle2 size={10} /> Resolvido
+                                                                                </span>
+                                                                            )}
                                                                         </h4>
+
+                                                                        {/* Revision Banner */}
+                                                                        {isCorrection && originalUpdate && (
+                                                                            <div className="mb-4 p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg flex items-start gap-3 animate-in slide-in-from-left-2 duration-500">
+                                                                                <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                                                                                    <RefreshCw size={12} className="text-blue-400" />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-[11px] font-bold text-blue-400 uppercase tracking-wider mb-0.5">Atualização Corretiva</p>
+                                                                                    <p className="text-[12px] text-foreground/80 leading-snug">
+                                                                                        Esta versão é uma correção direta da atualização: <span className="font-bold text-blue-300">"{originalUpdate.title}"</span>.
+                                                                                    </p>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {/* Superseded Banner */}
+                                                                        {isSuperseded && (
+                                                                            <div className="mb-4 p-3 bg-green-500/5 border border-green-500/10 rounded-lg flex items-start gap-3">
+                                                                                <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+                                                                                    <CheckCircle2 size={12} className="text-green-400" />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-[11px] font-bold text-green-400 uppercase tracking-wider mb-0.5">Versão Endereçada</p>
+                                                                                    <p className="text-[12px] text-foreground/80 leading-snug">
+                                                                                        Os pontos desta versão foram corrigidos na atualização mais recente.
+                                                                                    </p>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
                                                                         {upd.message && (
                                                                             <div className="text-[14px] text-muted-foreground/90 leading-relaxed bg-background/50 p-3 rounded-lg border border-border/30 mb-4">
                                                                                 {upd.message}
@@ -792,7 +852,7 @@ export default function DashboardPage() {
                                             <AlertCircle size={15} className="text-primary" /> Termo de Confidencialidade e Sigilo
                                         </h3>
                                         <p className="leading-relaxed opacity-90">
-                                            Ao prosseguir, você concorda expressamente em manter escopo de sigilo sobre metodologias, interfaces, e lógicas apresentadas neste ambiente. A reprodução, engenharia reversa, ou o compartilhamento indevido destes dados estão sujeitos á s penalidades previstas na lei de proteção intelectual.
+                                            Ao prosseguir, você concorda expressamente em manter escopo de sigilo sobre metodologias, interfaces, e lógicas apresentadas neste ambiente. A reprodução, engenharia reversa, ou o compartilhamento indevido destes dados estão sujeitos às penalidades previstas na lei de proteção intelectual.
                                         </p>
                                     </div>
                                 </div>
@@ -828,7 +888,7 @@ export default function DashboardPage() {
 
                     {/* Global Squad Hover Popover */}
                     <AnimatePresence>
-                        {hoverSquadRect && hoverSquadRect.member.bio && (
+                        {hoverSquadRect && hoverSquadRect.member?.bio && (
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.9, x: -10 }}
                                 animate={{ opacity: 1, scale: 1, x: 0 }}
@@ -845,12 +905,12 @@ export default function DashboardPage() {
                                         <div className="flex items-center gap-2 mb-3">
                                             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
-                                                {hoverSquadRect.member.position}
+                                                {hoverSquadRect.member?.position}
                                             </span>
                                         </div>
-                                        <p className="text-[14px] font-bold text-foreground mb-2">{hoverSquadRect.member.name}</p>
+                                        <p className="text-[14px] font-bold text-foreground mb-2">{hoverSquadRect.member?.name}</p>
                                         <p className="text-[12px] sm:text-[13px] text-muted-foreground leading-relaxed font-medium">
-                                            {hoverSquadRect.member.bio}
+                                            {hoverSquadRect.member?.bio}
                                         </p>
                                     </div>
                                 </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { DEFAULT_TEMPLATE } from '@/lib/email'
 
 // Ensure the email_templates table exists
 async function ensureTable() {
@@ -23,7 +24,17 @@ export async function GET() {
     try {
         await ensureTable()
         const res = await db.query('SELECT * FROM email_templates WHERE key = $1', ['update_notification'])
-        return NextResponse.json({ template: res.rows[0] || null })
+        
+        let template = res.rows[0] || null
+        if (!template) {
+            template = {
+                key: 'update_notification',
+                html: DEFAULT_TEMPLATE,
+                subject: '[{{projectName}}] Nova atualização: {{updateTitle}}'
+            }
+        }
+        
+        return NextResponse.json({ template })
     } catch (error) {
         console.error('[email-template GET]', error)
         return NextResponse.json({ error: 'Erro ao buscar template' }, { status: 500 })

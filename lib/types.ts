@@ -58,6 +58,7 @@ export interface ProjectUpdate {
   viewed_at?: string | null
   preview_url?: string | null
   hours_spent?: number
+  revision_of?: string | null  // UUID of the update this corrects
   created_at: string
 }
 
