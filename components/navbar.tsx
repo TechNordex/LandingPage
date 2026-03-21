@@ -108,6 +108,14 @@ export function Navbar() {
         {/* CTA */}
         <div className="hidden md:flex items-center gap-4">
           <a
+            href="https://nordy.nordex.tech"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md border border-primary/40 text-primary text-sm font-semibold hover:bg-primary/10 transition-colors duration-200"
+          >
+            Conheça o Nordy
+          </a>
+          <a
             href="/login"
             className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200"
           >
@@ -149,6 +157,14 @@ export function Navbar() {
             </a>
           ))}
           <div className="flex flex-col gap-3 pt-2">
+            <a
+              href="https://nordy.nordex.tech"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center px-5 py-3 rounded-md border border-primary/40 text-primary text-base font-semibold hover:bg-primary/10 transition-colors"
+            >
+              Conheça o Nordy
+            </a>
             <a
               href="/login"
               className="inline-flex items-center justify-center px-5 py-3 rounded-md border border-border text-base font-medium text-foreground hover:bg-white/5 transition-colors"
