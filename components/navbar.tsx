@@ -17,6 +17,7 @@ const navLinks = [
   { label: "Sobre", href: "#sobre" },
   { label: "Projetos", href: "#projetos" },
   { label: "Contato", href: "#contato" },
+  { label: "Conheça o Nordy", href: "https://nordy.nordex.tech" },
 ]
 
 export function Navbar() {
@@ -47,15 +48,17 @@ export function Navbar() {
   }, [])
 
   const handleScroll = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    e.preventDefault()
-
     // Smooth scroll to target area
     if (href.startsWith("#")) {
+      e.preventDefault()
       const targetId = href.substring(1)
       const elem = document.getElementById(targetId)
       if (elem) {
         elem.scrollIntoView({ behavior: "smooth" })
       }
+    } else {
+      // It's an external link, let the browser handle it
+      // Optionally we could set target="_blank" on the anchor directly
     }
 
     // Close mobile menu if open
