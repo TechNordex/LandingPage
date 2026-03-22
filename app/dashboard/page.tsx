@@ -158,6 +158,7 @@ export default function DashboardPage() {
         if (!activeProjectId) return
         try {
             setInitiatingChatId(member.id)
+            setHoverSquadRect(null)
             const res = await fetch('/api/chat/init', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -449,8 +450,8 @@ export default function DashboardPage() {
                             {/* Squad Info */}
                             {project.squad && project.squad.length > 0 && (
                                 <div id="tour-squad" className="space-y-3 pb-4">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] text-primary flex items-center gap-1.5 truncate">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] text-primary flex items-center gap-1.5 shrink-0">
                                             <Users size={12} className="shrink-0" /> Squad Especialista
                                         </span>
                                         <button 
@@ -471,9 +472,9 @@ export default function DashboardPage() {
                                                     }
                                                 } catch (err) {} finally { setInitiatingChatId(null) }
                                             }}
-                                            className="text-[10px] font-bold text-primary hover:text-primary-foreground bg-primary/10 hover:bg-primary border border-primary/20 px-2 py-1 rounded transition-all flex items-center gap-1.5"
+                                            className="text-[9px] sm:text-[10px] font-bold text-primary hover:text-primary-foreground bg-primary/10 hover:bg-primary border border-primary/20 hover:border-primary px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 uppercase whitespace-nowrap shrink-0"
                                         >
-                                            {initiatingChatId === 'squad-group' ? <Loader2 size={10} className="animate-spin" /> : <MessageSquareText size={10} />}
+                                            {initiatingChatId === 'squad-group' ? <Loader2 size={12} className="animate-spin" /> : <MessageSquareText size={12} />}
                                             MENSAGEM SQUAD
                                         </button>
                                     </div>
@@ -1011,7 +1012,7 @@ export default function DashboardPage() {
                 )}
 
                 {/* Global Squad Hover Popover */}
-                {hoverSquadRect?.member?.bio && (
+                {hoverSquadRect?.member?.bio && !showChatPopup && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9, x: -10 }}
                         animate={{ opacity: 1, scale: 1, x: 0 }}

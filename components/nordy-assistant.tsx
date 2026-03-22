@@ -345,10 +345,7 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                     <div className="absolute inset-0 border-2 border-primary-foreground/20 rounded-full animate-ping opacity-20" />
                 </button>
                 
-                {/* Status Badge */}
-                {!isOpen && (
-                    <div className="absolute top-0 right-0 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-green-500 border-2 border-background rounded-full" />
-                )}
+
             </motion.div>
 
             {/* Chat Window */}

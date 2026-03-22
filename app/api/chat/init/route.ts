@@ -34,7 +34,7 @@ export async function POST(req: Request) {
             // Create group
             const client = await db.connect()
             try {
-                const groupName = `${session.name || 'Cliente'} Grupo`
+                const groupName = `${session.name || 'Cliente'} Chat`
                 await client.query('BEGIN')
                 const insertRes = await client.query(
                     `INSERT INTO chat_conversations (type, project_id, name) VALUES ('group', $1, $2) RETURNING id`,
