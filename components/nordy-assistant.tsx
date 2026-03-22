@@ -39,8 +39,8 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
             target: "tour-env-links"
         },
         {
-            title: "Squad Especialista",
-            content: "Abaixo dos ambientes, você vê quem são os especialistas Nordex cuidando do seu projeto. Um clique revela o perfil deles!",
+            title: "Squad Especialista & Chat",
+            content: "Aqui você vê os especialistas cuidando do seu projeto. Clique em um perfil para abrir o CHAT direto ou inicie uma conversa com a equipe inteira! 💬",
             target: "tour-squad"
         },
         {
@@ -49,8 +49,13 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
             target: "tour-pipeline"
         },
         {
+            title: "Métricas do Projeto",
+            content: "Acompanhe indicadores em tempo real: dias ativo, total de evoluções e data da última entrega. Transparência total! 📊",
+            target: "tour-metrics"
+        },
+        {
             title: "Histórico e Aprovações",
-            content: "Neste painel principal, postamos cada avanço do desenvolvimento. Você pode aprovar etapas ou solicitar ajustes. Sua opinião guia o projeto!",
+            content: "Neste painel principal, postamos cada avanço. Você pode aprovar etapas ou solicitar ajustes diretamente aqui. ✨",
             target: "tour-updates"
         },
         {
@@ -353,7 +358,7 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                         initial={{ opacity: 0, y: 50, scale: 0.9, x: 20 }}
                         animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
                         exit={{ opacity: 0, y: 50, scale: 0.9, x: 20 }}
-                        className="fixed bottom-0 right-0 z-[120] w-full h-[100dvh] sm:bottom-24 sm:right-6 sm:w-[380px] sm:h-[550px] bg-card sm:border sm:border-border rounded-none sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden backdrop-blur-xl"
+                        className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 z-[120] w-full h-full sm:w-[380px] sm:h-[550px] sm:max-h-[80vh] bg-card sm:border sm:border-border rounded-none sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden backdrop-blur-xl"
                     >
                         {/* Header */}
                         <div className="p-3 sm:p-4 bg-primary text-primary-foreground flex items-center justify-between shadow-lg shrink-0">

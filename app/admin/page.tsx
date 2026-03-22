@@ -4,6 +4,8 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react'
+import useSWR, { mutate } from 'swr'
+import { useRealtime } from '@/hooks/use-realtime'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { LogOut, Plus, Activity, Send, Loader2, X, Edit, Users, Shield, User, FolderKanban, CheckCircle2, Clock, MessageSquareText, FileEdit, Link as LinkIcon, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown, AlertCircle, Trash2, Search, SlidersHorizontal, Briefcase, FileDown, Upload, Mail, Eye, RefreshCw, LayoutDashboard, BarChart2, UsersRound, Timer, TrendingUp, Menu, Check } from 'lucide-react'
@@ -13,28 +15,54 @@ import { STAGES } from '@/lib/types'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import ImageCropperModal from '@/components/common/ImageCropper'
+import ChatTeam from '@/components/chat-team'
 import jsPDF from 'jspdf'
 import { useRef } from 'react'
 
 export default function AdminPage() {
     const router = useRouter()
-    const [projects, setProjects] = useState<Project[]>([])
-    const [users, setUsers] = useState<PortalUser[]>([])
-    const [loading, setLoading] = useState(true)
+    
+    // Helper para formatar horas e minutos
+    const formatHours = (hours: number | undefined | null) => {
+        if (hours === undefined || hours === null || hours === 0) return '—';
+        const h = Math.floor(hours);
+        const m = Math.round((hours - h) * 60);
+        if (m === 0) return `${h}h`;
+        if (h === 0) return `${m}m`;
+        return `${h}h ${m}m`;
+    };
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'users' | 'trash' | 'team' | 'reports' | 'email'>('overview')
+    const fetcher = (url: string) => fetch(url).then(res => {
+        if (!res.ok) {
+            if (res.status === 401 || res.status === 403) router.push('/login')
+            throw new Error('Unauthorized')
+        }
+        return res.json()
+    })
+
+    const { data: dataProj, mutate: mutateProj, isLoading: loadingProj } = useSWR('/api/admin/projects', fetcher)
+    const { data: dataUsers, mutate: mutateUsers, isLoading: loadingUsers } = useSWR('/api/admin/users', fetcher)
+    const { data: dataTrash, mutate: mutateTrash } = useSWR('/api/admin/projects?trash=true', fetcher)
+    const { data: dataTeam, mutate: mutateTeam } = useSWR('/api/admin/team', fetcher)
+    const { data: dataAssignments, mutate: mutateAssignments } = useSWR('/api/admin/assignments', fetcher)
+    const { data: dataReport, mutate: mutateReport } = useSWR('/api/admin/reports', fetcher)
+    const { data: dataMe } = useSWR('/api/auth/me', fetcher)
+
+    const projects = useMemo(() => dataProj?.projects?.sort((a: Project, b: Project) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()) || [], [dataProj])
+    const users = dataUsers?.users || []
+    const trashProjects = dataTrash?.projects || []
+    const teamStats = dataTeam || { workload: [], recentContributions: [] }
+    const projectAssignments = dataAssignments?.assignments || []
+    const reportData = dataReport || null
+    const currentUser = dataMe?.user || null
+    const loading = loadingProj || loadingUsers
+
+    const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'users' | 'trash' | 'team' | 'reports' | 'email' | 'mensagens'>('overview')
     const [usersMenuExpanded, setUsersMenuExpanded] = useState(false)
-    const [trashProjects, setTrashProjects] = useState<Project[]>([])
-    const [teamStats, setTeamStats] = useState<{ workload: any[], recentContributions: any[] }>({ workload: [], recentContributions: [] })
+    const [teamStatsState, setTeamStatsState] = useState<{ workload: any[], recentContributions: any[] }>({ workload: [], recentContributions: [] })
     const [editingTeamMember, setEditingTeamMember] = useState<PortalUser | null>(null)
     const [assigningProject, setAssigningProject] = useState<Project | null>(null)
-    const [projectAssignments, setProjectAssignments] = useState<any[]>([])
-    const [reportData, setReportData] = useState<any>(null)
-    const [reportProjectId, setReportProjectId] = useState<string>('all')
-    const [reportStartDate, setReportStartDate] = useState<string>(format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'))
-    const [reportEndDate, setReportEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
-    const [isUpdating, setIsUpdating] = useState<string | null>(null) // project id
-    const [currentUser, setCurrentUser] = useState<PortalUser | null>(null)
+    const [projectAssignmentsState, setProjectAssignmentsState] = useState<any[]>([])
     const [uploadLoading, setUploadLoading] = useState(false)
     const [showAddTeamMember, setShowAddTeamMember] = useState(false)
     const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -43,6 +71,12 @@ export default function AdminPage() {
     // Image Cropper States
     const [showCropper, setShowCropper] = useState(false)
     const [cropperTarget, setCropperTarget] = useState<'team' | 'project' | null>(null)
+    const [isExporting, setIsExporting] = useState(false)
+    const [reportProjectId, setReportProjectId] = useState<string>('all')
+    const [reportStartDate, setReportStartDate] = useState<string>(format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'))
+    const [reportEndDate, setReportEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
+    const [isUpdating, setIsUpdating] = useState<string | null>(null) // project id
+
     const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null)
     const [expandedClientId, setExpandedClientId] = useState<string | null>(null)
     const [projectSearch, setProjectSearch] = useState('')
@@ -62,6 +96,7 @@ export default function AdminPage() {
     const [editProjectProdUrl, setEditProjectProdUrl] = useState('')
     const [editProjectLoading, setEditProjectLoading] = useState(false)
     const [editProjectHours, setEditProjectHours] = useState<string>('')
+    const [editProjectMinutes, setEditProjectMinutes] = useState<string>('')
 
     // Forms states...
     const [newClientName, setNewClientName] = useState('')
@@ -92,6 +127,7 @@ export default function AdminPage() {
     const [newProjectStageUrl, setNewProjectStageUrl] = useState('')
     const [newProjectProdUrl, setNewProjectProdUrl] = useState('')
     const [newProjectHours, setNewProjectHours] = useState<string>('')
+    const [newProjectMinutes, setNewProjectMinutes] = useState<string>('')
     const [projectLoading, setProjectLoading] = useState(false)
 
     const [updateStage, setUpdateStage] = useState(1)
@@ -99,6 +135,7 @@ export default function AdminPage() {
     const [updateMessage, setUpdateMessage] = useState('')
     const [updatePreviewUrl, setUpdatePreviewUrl] = useState('')
     const [updateHours, setUpdateHours] = useState<string>('')
+    const [updateMinutes, setUpdateMinutes] = useState<string>('')
     const [lastUpdateStage, setLastUpdateStage] = useState<number | null>(null)
 
     // Revision system state
@@ -115,6 +152,7 @@ export default function AdminPage() {
     const [qvRevisionOf, setQvRevisionOf] = useState('')
     const [qvPreviewUrl, setQvPreviewUrl] = useState('')
     const [qvHours, setQvHours] = useState('')
+    const [qvMinutes, setQvMinutes] = useState('')
     const [qvLoading, setQvLoading] = useState(false)
 
     // Email template states
@@ -168,10 +206,10 @@ export default function AdminPage() {
     const filteredGroups = useMemo(() => {
         // --- Derived Data ---
         const clientMap = new Map<string, { client: PortalUser | null; clientName: string; clientEmail: string; projects: Project[] }>();
-        projects.forEach(proj => {
+        projects.forEach((proj: Project) => {
             const key = proj.client_id;
             if (!clientMap.has(key)) {
-                const user = users.find(u => u.id === key) || null;
+                const user = users.find((u: PortalUser) => u.id === key) || null;
                 clientMap.set(key, { client: user, clientName: proj.client_name || 'Cliente Desconhecido', clientEmail: proj.client_email || '', projects: [] });
             }
             clientMap.get(key)!.projects.push(proj);
@@ -205,7 +243,7 @@ export default function AdminPage() {
     }, [projects, users, projectSearch, projectFilter]);
 
     const filteredReportProjects = useMemo(() => {
-        return projects.filter(p => {
+        return projects.filter((p: Project) => {
             if (reportProjectId !== 'all' && p.id !== reportProjectId) return false;
             const projectDate = new Date(p.created_at);
             const start = new Date(reportStartDate);
@@ -222,10 +260,10 @@ export default function AdminPage() {
 
         const updates = project.updates || [];
         const totalUpdates = updates.length;
-        const approvedUpdates = updates.filter(u => u.status === 'authorized').length;
-        const deniedUpdates = updates.filter(u => u.status === 'denied').length;
+        const approvedUpdates = updates.filter((u: any) => u.status === 'authorized').length;
+        const deniedUpdates = updates.filter((u: any) => u.status === 'denied').length;
         
-        const totalHours = updates.reduce((acc, u) => acc + (u.hours_spent || 0), 0);
+        const totalHours = updates.reduce((acc: number, u: any) => acc + (u.hours_spent || 0), 0);
         const rejectionCount = deniedUpdates + (project.preview_status === 'rejected' ? 1 : 0);
         
         let leadTime = "Em andamento";
@@ -249,68 +287,21 @@ export default function AdminPage() {
         };
     }, [projects, reportProjectId]);
 
-    useEffect(() => {
-        fetchData()
-    }, [])
-
-    // Escape listener for Quick-View Modal
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && quickViewProject) {
-                setQuickViewProject(null)
-                setQvMode(null)
-            }
-        }
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [quickViewProject])
-
-    const fetchData = async () => {
-        setLoading(true)
-        try {
-            const responses = await Promise.all([
-                fetch('/api/admin/projects'),
-                fetch('/api/admin/users'),
-                fetch('/api/admin/projects?trash=true'),
-                fetch('/api/admin/team'),
-                fetch('/api/admin/assignments'),
-                fetch('/api/admin/reports'),
-                fetch('/api/auth/me')
-            ])
-            
-            const [resProj, resUsers, resTrash, resTeam, resAssignments, resReport, resMe] = responses;
-
-            if (resProj.status === 403 || resUsers.status === 403 || resProj.status === 401 || resUsers.status === 401) {
-                router.push('/login')
-                return
-            }
-
-            // Parse all OK responses once
-            const dataProj = resProj.ok ? await resProj.json() : null;
-            const dataUsers = resUsers.ok ? await resUsers.json() : null;
-            const dataTrash = resTrash.ok ? await resTrash.json() : null;
-            const dataTeam = resTeam.ok ? await resTeam.json() : null;
-            const dataAssignments = resAssignments.ok ? await resAssignments.json() : null;
-            const dataReport = resReport.ok ? await resReport.json() : null;
-            const dataMe = resMe.ok ? await resMe.json() : null;
-
-            if (dataReport) setReportData(dataReport)
-            if (dataMe) setCurrentUser(dataMe.user)
-
-            if (dataProj) {
-                const sortedProjects = dataProj.projects.sort((a: Project, b: Project) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-                setProjects(sortedProjects)
-            }
-            if (dataUsers) setUsers(dataUsers.users)
-            if (dataTrash) setTrashProjects(dataTrash.projects)
-            if (dataTeam) setTeamStats(dataTeam)
-            if (dataAssignments) setProjectAssignments(dataAssignments.assignments)
-        } catch (error) {
-            console.error("Error fetching data:", error);
-        } finally {
-            setLoading(false)
-        }
+    const refreshAllData = async () => {
+        await Promise.all([
+            mutateProj(),
+            mutateUsers(),
+            mutateTrash(),
+            mutateTeam(),
+            mutateAssignments(),
+            mutateReport()
+        ])
     }
+
+    const fetchData = refreshAllData // Alias for compatibility with existing calls
+
+    // Real-time listener
+    useRealtime(refreshAllData)
 
     const handleResetTour = async (userId: string) => {
         setResetTourLoading(userId)
@@ -360,7 +351,7 @@ export default function AdminPage() {
                     title: updateTitle, 
                     message: updateMessage,
                     preview_url: updatePreviewUrl || undefined,
-                    hours_spent: updateHours ? Number(updateHours) : undefined,
+                    hours_spent: (updateHours || updateMinutes) ? (Number(updateHours || 0) + Number(updateMinutes || 0) / 60) : undefined,
                     revision_of: isRevision && revisionOf ? revisionOf : undefined,
                  }),
             })
@@ -373,6 +364,7 @@ export default function AdminPage() {
             setUpdateMessage('')
             setUpdatePreviewUrl('')
             setUpdateHours('')
+            setUpdateMinutes('')
             setIsRevision(false)
             setRevisionOf('')
             setProjectUpdatesForRevision([])
@@ -397,7 +389,7 @@ export default function AdminPage() {
                     title: qvTitle,
                     message: qvMessage,
                     preview_url: qvPreviewUrl || undefined,
-                    hours_spent: qvHours ? Number(qvHours) : undefined,
+                    hours_spent: (qvHours || qvMinutes) ? (Number(qvHours || 0) + Number(qvMinutes || 0) / 60) : undefined,
                     revision_of: qvMode === 'reply' && qvRevisionOf ? qvRevisionOf : undefined,
                 }),
             })
@@ -410,6 +402,7 @@ export default function AdminPage() {
             setQvMessage('')
             setQvPreviewUrl('')
             setQvHours('')
+            setQvMinutes('')
             setQvRevisionOf('')
             setQvMode(null)
             // Refresh data
@@ -459,7 +452,7 @@ export default function AdminPage() {
             })
             const data = await res.json()
             if (res.status === 409 && data.warning) {
-                // Show project warning €” require force confirm
+                // Show project warning — require force confirm
                 setDeleteWarning({ message: data.message, projects: data.projects })
             } else if (!res.ok) {
                 alert(data.error || 'Erro ao excluir usuário')
@@ -483,12 +476,12 @@ export default function AdminPage() {
                     preview_url: newProjectUrl, 
                     stage_url: newProjectStageUrl,
                     prod_url: newProjectProdUrl,
-                    estimated_hours: newProjectHours ? Number(newProjectHours) : undefined 
+                    estimated_hours: (newProjectHours || newProjectMinutes) ? (Number(newProjectHours || 0) + Number(newProjectMinutes || 0) / 60) : undefined 
                 }) 
             })
             if (!res.ok) throw new Error()
             setShowNewProject(false); setActiveTab('projects'); fetchData()
-            setNewProjectName(''); setNewProjectClientId(''); setNewProjectDesc(''); setNewProjectUrl(''); setNewProjectStageUrl(''); setNewProjectProdUrl(''); setNewProjectHours('')
+            setNewProjectName(''); setNewProjectClientId(''); setNewProjectDesc(''); setNewProjectUrl(''); setNewProjectStageUrl(''); setNewProjectProdUrl(''); setNewProjectHours(''); setNewProjectMinutes('')
         } catch (err) { alert('Erro criar proj') } finally { setProjectLoading(false) }
     }
 
@@ -499,7 +492,11 @@ export default function AdminPage() {
         setEditProjectUrl(proj.preview_url || '');
         setEditProjectStageUrl(proj.stage_url || '');
         setEditProjectProdUrl(proj.prod_url || '');
-        setEditProjectHours(proj.estimated_hours?.toString() || '');
+        const totalHrs = proj.estimated_hours || 0;
+        const h = Math.floor(totalHrs);
+        const m = Math.round((totalHrs - h) * 60);
+        setEditProjectHours(h > 0 ? h.toString() : '');
+        setEditProjectMinutes(m > 0 ? m.toString() : '');
     }
 
     const handleEditProject = async (e: React.FormEvent) => {
@@ -515,7 +512,7 @@ export default function AdminPage() {
                     preview_url: editProjectUrl, 
                     stage_url: editProjectStageUrl,
                     prod_url: editProjectProdUrl,
-                    estimated_hours: editProjectHours ? Number(editProjectHours) : undefined 
+                    estimated_hours: (editProjectHours || editProjectMinutes) ? (Number(editProjectHours || 0) + Number(editProjectMinutes || 0) / 60) : undefined 
                 }) 
             })
             if (!res.ok) throw new Error()
@@ -662,7 +659,7 @@ export default function AdminPage() {
 
     const handleExportPDF = async () => {
         try {
-            setLoading(true);
+            setIsExporting(true);
 
             // Create PDF
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -671,7 +668,7 @@ export default function AdminPage() {
             const margin = 16;
             const contentW = pageW - margin * 2;
 
-            // ”€”€ Colors ”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€
+            // ── Colors ────────────────────────────────────────────────────────
             const C_PRIMARY  = [245, 168, 0]  as [number, number, number];
             const C_WHITE    = [245, 245, 245] as [number, number, number];
             const C_GRAY     = [140, 140, 140] as [number, number, number];
@@ -680,7 +677,7 @@ export default function AdminPage() {
             const C_CARD     = [26, 26, 26]   as [number, number, number];
             const C_BORDER   = [45, 45, 45]   as [number, number, number];
 
-            // ”€”€ Helper functions ”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€
+            // ── Helper functions ──────────────────────────────────────────────
             let y = 0;
             const checkPageBreak = (neededH: number) => {
                 if (y + neededH > pageH - 20) {
@@ -704,11 +701,11 @@ export default function AdminPage() {
                 pdf.text(text, tx, ty, { align });
             };
 
-            // ”€”€ PAGE 1 BG ”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€
+            // ── PAGE 1 BG ──────────────────────────────────────────────────────
             pdf.setFillColor(...C_DARK_BG);
             pdf.rect(0, 0, pageW, pageH, 'F');
 
-            // ”€”€ HEADER REDESIGN (Premium Dark with Gold Accents) ”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€
+            // ── HEADER REDESIGN (Premium Dark with Gold Accents) ──────────────
             y = margin + 4;
             
             // Try fetching real logo and adding it
@@ -748,7 +745,7 @@ export default function AdminPage() {
 
             // Right side metadata
             txt(reportTitle.toUpperCase(), pageW - margin, y - 1, 10, C_WHITE, true, 'right');
-            txt(`PERÍODO: ${format(new Date(reportStartDate), 'dd/MM/yyyy')} €” ${format(new Date(reportEndDate), 'dd/MM/yyyy')}`, pageW - margin, y + 5, 7, C_PRIMARY, true, 'right');
+            txt(`PERÍODO: ${format(new Date(reportStartDate), 'dd/MM/yyyy')} — ${format(new Date(reportEndDate), 'dd/MM/yyyy')}`, pageW - margin, y + 5, 7, C_PRIMARY, true, 'right');
 
             // Separator Line
             y += 12;
@@ -761,7 +758,7 @@ export default function AdminPage() {
             txt(`Documento gerado em ${format(new Date(), "dd 'de' MMMM 'de' yyyy, 'às' HH:mm", { locale: ptBR })}`, margin, y, 8, C_GRAY);
             y += 10;
 
-            // ”€”€ DATA PREP ”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€
+            // ── DATA PREP ──────────────────────────────────────────────────────
             const filteredProjects = isAll ? projects : projects.filter(p => p.id === reportProjectId);
             const totalUpdates = filteredProjects.reduce((a, p) => a + (p.updates?.length || 0), 0);
             const totalHours   = filteredProjects.reduce((a, p) => a + (p.updates || []).reduce((s: number, u: any) => s + (u.hours_spent || 0), 0), 0);
@@ -769,12 +766,12 @@ export default function AdminPage() {
             const denied       = filteredProjects.reduce((a, p) => a + (p.updates || []).filter((u: any) => u.status === 'denied').length, 0);
             const completed    = filteredProjects.filter(p => p.current_stage === 6).length;
 
-            // ”€”€ KPI CARDS ”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€
+            // ── KPI CARDS ──────────────────────────────────────────────────────
             const kpis = [
                 { label: 'PROJETOS TOTAIS', value: String(filteredProjects.length) },
                 { label: 'FINALIZADOS', value: String(completed) },
-                { label: 'HORAS DE ESFORÃ‡O', value: `${totalHours}h` },
-                { label: 'ATUALIZAÃ‡Ã•ES', value: String(totalUpdates) },
+                { label: 'HORAS DE ESFORÇO', value: formatHours(totalHours) },
+                { label: 'ATUALIZAÇÕES', value: String(totalUpdates) },
                 { label: 'APROVADAS', value: String(approved) },
                 { label: 'RECUSADAS', value: String(denied) },
             ];
@@ -802,7 +799,7 @@ export default function AdminPage() {
 
             y += (Math.ceil(kpis.length / kpiCols)) * (kpiH + 6) + 12;
 
-            // ”€”€ PROJECTS TABLE ”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€
+            // ── PROJECTS TABLE ────────────────────────────────────────────────
             checkPageBreak(25);
             txt('Resumo Operacional', margin, y, 12, C_WHITE, true);
             y += 8;
@@ -842,13 +839,13 @@ export default function AdminPage() {
                 pdf.setLineWidth(0.2);
                 pdf.line(margin, y + rowH, margin + contentW, y + rowH);
 
-                const nameStr = p.name.length > 28 ? p.name.slice(0, 26) + '€¦' : p.name;
-                const clientStr = (p.client_name || '€”').length > 18 ? (p.client_name || '').slice(0, 16) + '€¦' : (p.client_name || '€”');
+                const nameStr = p.name.length > 28 ? p.name.slice(0, 26) + '...' : p.name;
+                const clientStr = (p.client_name || '—').length > 18 ? (p.client_name || '').slice(0, 16) + '...' : (p.client_name || '—');
 
                 txt(nameStr,      cols[0].x + 3, y + 6.5, 8, C_WHITE, true);
                 txt(clientStr,    cols[1].x + 3, y + 6.5, 7.5, C_LIGHT_G);
                 txt(`${p.current_stage}/6`, cols[2].x + 3, y + 6.5, 8, C_PRIMARY, true);
-                txt(hrs > 0 ? `${hrs}h` : '€”', cols[3].x + 3, y + 6.5, 8, hrs > 0 ? C_WHITE : C_GRAY);
+                txt(hrs > 0 ? formatHours(hrs) : '—', cols[3].x + 3, y + 6.5, 8, hrs > 0 ? C_WHITE : C_GRAY);
                 txt(String(upd),  cols[4].x + 3, y + 6.5, 8, C_WHITE);
                 txt(statusLabel,  cols[5].x + 3, y + 6.5, 7.5, p.current_stage === 6 ? [80,200,120] : C_LIGHT_G);
 
@@ -856,7 +853,7 @@ export default function AdminPage() {
             });
             y += 14;
 
-            // ”€”€ UPDATES DETAIL ”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€
+            // ── UPDATES DETAIL ────────────────────────────────────────────────
             filteredProjects.forEach(p => {
                 const updates: any[] = p.updates || [];
                 if (updates.length === 0) return;
@@ -898,11 +895,11 @@ export default function AdminPage() {
                     if (u.hours_spent) {
                         pdf.setFillColor(40, 40, 40);
                         pdf.roundedRect(margin + contentW - 22, y + 8, 20, 5, 1, 1, 'F');
-                        txt(`${u.hours_spent}h invest.`, margin + contentW - 12, y + 11.5, 6, C_WHITE, false, 'center');
+                        txt(`${formatHours(u.hours_spent)} invest.`, margin + contentW - 12, y + 11.5, 6, C_WHITE, false, 'center');
                     }
 
                     if (u.message) {
-                        const msg = u.message.length > 90 ? u.message.slice(0, 88) + '€¦' : u.message;
+                        const msg = u.message.length > 90 ? u.message.slice(0, 88) + '...' : u.message;
                         txt(msg, margin + 30, y + 11, 7.5, C_GRAY);
                     }
                     y += 15;
@@ -910,13 +907,13 @@ export default function AdminPage() {
                 y += 8;
             });
 
-            // ”€”€ FOOTER (All Pages) ”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€
+            // ── FOOTER (All Pages) ────────────────────────────────────────────
             const totalPages = (pdf as any).internal.getNumberOfPages();
             for (let i = 1; i <= totalPages; i++) {
                 pdf.setPage(i);
                 pdf.setDrawColor(...C_BORDER);
                 pdf.line(margin, pageH - 12, pageW - margin, pageH - 12);
-                txt('NORDEX TECH €” CONFIDENTIAL SYSTEM REPORT', margin, pageH - 7, 6, C_GRAY, true);
+                txt('NORDEX TECH — CONFIDENTIAL SYSTEM REPORT', margin, pageH - 7, 6, C_GRAY, true);
                 txt(`PÁGINA ${i} DE ${totalPages}`, pageW - margin, pageH - 7, 6, C_GRAY, true, 'right');
             }
 
@@ -930,30 +927,31 @@ export default function AdminPage() {
             console.error('Erro ao exportar PDF:', error);
             alert('Erro ao gerar o PDF. Verifique o console.');
         } finally {
-            setLoading(false);
+            setIsExporting(false);
         }
     };
 
     if (loading && projects.length === 0) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary w-8 h-8" /></div>;
 
     const totalProjects = projects.length;
-    const totalClients = users.filter((u) => u.role === 'client').length;
-    const completedProjects = projects.filter((p) => p.current_stage === 6).length;
+    const totalClients = users.filter((u: PortalUser) => u.role === 'client').length;
+    const completedProjects = projects.filter((p: Project) => p.current_stage === 6).length;
     const activeProjects = totalProjects - completedProjects
     
-    const totalHoursTracked = projects.reduce((acc, p) => acc + (p.updates || []).reduce((s: number, u: any) => s + (u.hours_spent || 0), 0), 0)
-    const totalUpdatesAllTime = projects.reduce((acc, p) => acc + (p.updates?.length || 0), 0)
+    const totalHoursTracked = projects.reduce((acc: number, p: Project) => acc + (p.updates || []).reduce((s: number, u: any) => s + (u.hours_spent || 0), 0), 0)
+    const totalUpdatesAllTime = projects.reduce((acc: number, p: Project) => acc + (p.updates?.length || 0), 0)
     const thisMonth = new Date()
-    const updatesThisMonth = projects.reduce((acc, p) => acc + (p.updates || []).filter((u: any) => {
+    const updatesThisMonth = projects.reduce((acc: number, p: Project) => acc + (p.updates || []).filter((u: any) => {
         const d = new Date(u.created_at); return d.getMonth() === thisMonth.getMonth() && d.getFullYear() === thisMonth.getFullYear()
     }).length, 0)
-    const pendingApproval = projects.filter(p => p.preview_status === 'pending').length
+    const pendingApproval = projects.filter((p: Project) => p.preview_status === 'pending').length
 
     const NAV = [
         { tab: 'overview', label: 'Geral', icon: <LayoutDashboard size={18} /> },
         { tab: 'projects', label: 'Esteiras de desenvolvimento', icon: <FolderKanban size={18} /> },
         { tab: 'users', label: 'Usuários', icon: <Users size={18} /> },
         { tab: 'team', label: 'Equipe', icon: <UsersRound size={18} />, iconSize: 14, isSub: true },
+        { tab: 'mensagens', label: 'Mensagens', icon: <MessageSquareText size={18} /> },
         { tab: 'reports', label: 'Relatórios', icon: <BarChart2 size={18} /> },
         { tab: 'email', label: 'Configuração de Emails', icon: <Mail size={18} /> },
         { tab: 'trash', label: `Lixeira${trashProjects.length > 0 ? ` (${trashProjects.length})` : ''}`, icon: <Trash2 size={18} /> },
@@ -1068,20 +1066,26 @@ export default function AdminPage() {
                     <span className="text-[13px] font-bold">{NAV.find(n => n.tab === activeTab)?.label}</span>
                 </div>
 
-                <div className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar">
-
-                {activeTab === 'overview' && (
-                    <div className="space-y-6 animate-fade-in">
-                        {/* Page title */}
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-xl font-black tracking-tight text-foreground">Visão Geral</h2>
-                                <p className="text-[13px] text-muted-foreground mt-0.5">Métricas operacionais em tempo real</p>
-                            </div>
-                            {/* Actions removed as requested - should only be in contextual tabs */}
+                {activeTab === 'mensagens' ? (
+                    <div className="flex-1 p-2 sm:p-4 lg:p-6 flex flex-col overflow-hidden">
+                        <div className="flex-1 animate-fade-in flex flex-col bg-background rounded-xl shadow-sm border border-border overflow-hidden min-h-0">
+                            <ChatTeam currentUser={currentUser!} />
                         </div>
+                    </div>
+                ) : (
+                    <div className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar flex flex-col">
+                        {activeTab === 'overview' && (
+                            <div className="space-y-6 animate-fade-in">
+                                {/* Page title */}
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h2 className="text-xl font-black tracking-tight text-foreground">Visão Geral</h2>
+                                        <p className="text-[13px] text-muted-foreground mt-0.5">Métricas operacionais em tempo real</p>
+                                    </div>
+                                    {/* Actions removed as requested - should only be in contextual tabs */}
+                                </div>
 
-                        {/* KPI Cards €” Agency Metrics */}
+                        {/* KPI Cards — Agency Metrics */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                             {[
                                 { label: 'Projetos Ativos', value: activeProjects, sub: `${totalProjects} no total`, icon: <FolderKanban size={20} />, color: 'primary' },
@@ -1133,7 +1137,7 @@ export default function AdminPage() {
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center"><AlertCircle size={16} className="text-red-500" /></div>
                                                             <div>
-                                                                <p className="text-[13px] font-bold">{p.name} €” Ajuste Solicitado</p>
+                                                                <p className="text-[13px] font-bold">{p.name} — Ajuste Solicitado</p>
                                                                 <p className="text-[11px] text-muted-foreground">Cliente pediu revisão.</p>
                                                             </div>
                                                         </div>
@@ -1145,7 +1149,7 @@ export default function AdminPage() {
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center"><X size={16} className="text-rose-500" /></div>
                                                             <div>
-                                                                <p className="text-[13px] font-bold">{p.name} €” Entrega Recusada</p>
+                                                                <p className="text-[13px] font-bold">{p.name} — Entrega Recusada</p>
                                                                 <p className="text-[11px] text-muted-foreground">Uma ou mais etapas foram negadas.</p>
                                                             </div>
                                                         </div>
@@ -1157,7 +1161,7 @@ export default function AdminPage() {
                                                         <div className="flex items-center gap-3">
                                                             <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center"><Clock size={16} className="text-amber-500" /></div>
                                                             <div>
-                                                                <p className="text-[13px] font-bold">{p.name} €” Em Homologação</p>
+                                                                <p className="text-[13px] font-bold">{p.name} — Em Homologação</p>
                                                                 <p className="text-[11px] text-muted-foreground">Aguardando decisão do cliente.</p>
                                                             </div>
                                                         </div>
@@ -1195,10 +1199,10 @@ export default function AdminPage() {
                                                                 <p className="text-[11px] text-muted-foreground">{p.client_name}</p>
                                                             </td>
                                                             <td className="px-5 py-3 text-right">
-                                                                <span className={`text-[14px] font-black ${hrs > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}>{hrs > 0 ? `${hrs}h` : '€”'}</span>
+                                                                <span className={`text-[14px] font-black ${hrs > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}>{hrs > 0 ? `${hrs}h` : '—'}</span>
                                                             </td>
                                                             <td className="px-5 py-3 text-right">
-                                                                <span className="text-[13px] font-semibold text-muted-foreground">{p.estimated_hours ? `${p.estimated_hours}h` : '€”'}</span>
+                                                                <span className="text-[13px] font-semibold text-muted-foreground">{p.estimated_hours ? `${p.estimated_hours}h` : '—'}</span>
                                                             </td>
                                                             <td className="px-5 py-3 text-right">
                                                                 <span className="text-[13px] font-bold text-foreground">{p.updates?.length || 0}</span>
@@ -1467,7 +1471,7 @@ export default function AdminPage() {
                                                                                 >
                                                                                     <Trash2 size={14} />
                                                                                 </button>
-                                                                                {/* ”€”€ QUICK-VIEW EYE BUTTON ”€”€ */}
+                                                                                {/* ── QUICK-VIEW EYE BUTTON ── */}
                                                                                 {(() => {
                                                                                     const updates: any[] = proj.updates || [];
                                                                                     const latestUpdate = updates[0];
@@ -1602,14 +1606,18 @@ export default function AdminPage() {
                                                         <div className="flex-1">
                                                             <input type="url" placeholder="Ex: https://nordex-preview.com/projeto-v2" value={updatePreviewUrl} onChange={e => setUpdatePreviewUrl(e.target.value)} className="w-full bg-background border border-border rounded-md px-3 py-2 text-[13px] text-foreground focus:border-primary outline-none font-mono" />
                                                         </div>
-                                                        <div className="w-32">
-                                                            <input type="number" placeholder="Horas" value={updateHours} onChange={e => setUpdateHours(e.target.value)} className="w-full bg-background border border-border rounded-md px-3 py-2 text-[13px] text-foreground focus:border-primary outline-none" />
-                                                            <p className="text-[9px] text-muted-foreground mt-1 text-center font-bold">HORAS GASTAS</p>
+                                                        <div className="flex gap-2">
+                                                            <div className="flex-1">
+                                                                <input type="number" placeholder="Horas" value={updateHours} onChange={e => setUpdateHours(e.target.value)} className="w-full bg-background border border-border rounded-md px-3 py-2 text-[13px] text-foreground focus:border-primary outline-none" />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <input type="number" placeholder="Minutos" value={updateMinutes} onChange={e => setUpdateMinutes(e.target.value)} className="w-full bg-background border border-border rounded-md px-3 py-2 text-[13px] text-foreground focus:border-primary outline-none" />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                                                {/* ”€”€ REVISION SYSTEM UI ”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€ */}
+                                                                                {/* ── REVISION SYSTEM UI ──────────────────────────────── */}
                                                                                 <div className="rounded-xl border border-border/50 overflow-hidden">
                                                                                     <button
                                                                                         type="button"
@@ -1626,7 +1634,7 @@ export default function AdminPage() {
                                                                                             }`}>
                                                                                                 {isRevision && <Check size={10} className="text-white" />}
                                                                                             </span>
-                                                                                            Esta atualização é uma CORREÃ‡ÃƒO de uma versão anterior?
+                                                                                            Esta atualização é uma CORREÇÃO de uma versão anterior?
                                                                                         </span>
                                                                                         <span className="text-[10px] uppercase tracking-wider font-black opacity-60">Vincular</span>
                                                                                     </button>
@@ -1659,7 +1667,7 @@ export default function AdminPage() {
                                                                                         </div>
                                                                                     )}
                                                                                 </div>
-                                                                                {/* ”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€”€ */}
+                                                                                {/* ────────────────────────────────────────────────── */}
 
                                                                                 <div className="flex justify-end pt-2">
                                                                                     <button type="submit" className="h-10 px-6 sm:h-11 sm:px-8 bg-primary text-primary-foreground rounded-lg text-[12px] sm:text-[13px] font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-[0_0_20px_rgba(245,168,0,0.2)]">
@@ -1931,7 +1939,7 @@ export default function AdminPage() {
                                     </div>
                                     <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Esforço (Horas)</p>
-                                        <p className="text-2xl font-black text-foreground">{projectSpecificStats.totalHours} / {projectSpecificStats.estimatedHours}</p>
+                                        <p className="text-2xl font-black text-foreground">{formatHours(projectSpecificStats.totalHours)} / {formatHours(projectSpecificStats.estimatedHours)}</p>
                                         <p className="text-[11px] text-muted-foreground mt-1 italic">Atual vs Estimado</p>
                                     </div>
                                 </div>
@@ -2346,7 +2354,7 @@ export default function AdminPage() {
                         <div className="text-[14px] text-muted-foreground leading-relaxed mb-6 space-y-4">
                             {permanentDelete ? (
                                 <p className="bg-red-500/10 p-3 rounded-lg text-red-400 font-bold border border-red-500/20">
-                                    AVISO CRáÆ’TICO: Esta ação não pode ser desfeita. Todos os diários, atualizações e anotações do projeto "{deletingProject.name}" serão apagados para sempre.
+                                    AVISO CRÍTICO: Esta ação não pode ser desfeita. Todos os diários, atualizações e anotações do projeto "{deletingProject.name}" serão apagados para sempre.
                                 </p>
                             ) : (
                                 <p>
@@ -2400,7 +2408,16 @@ export default function AdminPage() {
                             </div>
                             <div>
                                 <label className="block text-[11px] font-bold uppercase tracking-wide mb-1.5 text-muted-foreground">Horas Totais Estimadas</label>
-                                <input value={editProjectHours} onChange={e => setEditProjectHours(e.target.value)} type="number" className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-[14px] text-foreground focus:border-primary outline-none" placeholder="Ex: 40" />
+                                <div className="flex gap-3">
+                                    <div className="flex-1 px-3 py-2.5 bg-background border border-border rounded-lg flex items-center gap-2 focus-within:border-primary">
+                                        <input value={editProjectHours} onChange={e => setEditProjectHours(e.target.value)} type="number" className="bg-transparent outline-none w-full text-[14px]" placeholder="Horas" />
+                                        <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">H</span>
+                                    </div>
+                                    <div className="flex-1 px-3 py-2.5 bg-background border border-border rounded-lg flex items-center gap-2 focus-within:border-primary">
+                                        <input value={editProjectMinutes} onChange={e => setEditProjectMinutes(e.target.value)} type="number" className="bg-transparent outline-none w-full text-[14px]" placeholder="Minutos" />
+                                        <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">M</span>
+                                    </div>
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
@@ -2492,7 +2509,16 @@ export default function AdminPage() {
 
                             <div>
                                 <label className="block text-[11px] font-bold uppercase tracking-wide mb-1.5 text-muted-foreground">Volume de Horas Previsto</label>
-                                <input value={newProjectHours} onChange={e => setNewProjectHours(e.target.value)} type="number" className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-[14px] focus:border-primary outline-none" placeholder="Ex: 50" />
+                                <div className="flex gap-3">
+                                    <div className="flex-1 px-3 py-2.5 bg-background border border-border rounded-lg flex items-center gap-2 focus-within:border-primary">
+                                        <input value={newProjectHours} onChange={e => setNewProjectHours(e.target.value)} type="number" className="bg-transparent outline-none w-full text-[14px]" placeholder="Horas" />
+                                        <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">H</span>
+                                    </div>
+                                    <div className="flex-1 px-3 py-2.5 bg-background border border-border rounded-lg flex items-center gap-2 focus-within:border-primary">
+                                        <input value={newProjectMinutes} onChange={e => setNewProjectMinutes(e.target.value)} type="number" className="bg-transparent outline-none w-full text-[14px]" placeholder="Minutos" />
+                                        <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">M</span>
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
@@ -2787,7 +2813,7 @@ export default function AdminPage() {
                                 className="relative z-10 w-full max-w-[620px] flex flex-col bg-card border border-border/80 rounded-2xl shadow-2xl shadow-black/50 animate-in zoom-in-95 duration-200 overflow-hidden max-h-[92vh] my-auto"
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                {/* ”€”€”€ Header ”€”€”€ */}
+                                {/* ── Header ── */}
                                                 <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/90 backdrop-blur-md shrink-0">
                                                     <div className="flex flex-col">
                                                         <h3 className="text-[16px] font-black text-foreground leading-tight tracking-tight uppercase">Disparar Atualização para o Cliente</h3>
@@ -2801,7 +2827,7 @@ export default function AdminPage() {
                                                     </button>
                                                 </div>
 
-                                {/* ”€”€”€ Scrollable Body ”€”€”€ */}
+                                {/* ── Scrollable Body ── */}
                                 <div className="overflow-y-auto custom-scrollbar flex-1">
                                     <div className="p-6 space-y-5">
 
@@ -2835,12 +2861,20 @@ export default function AdminPage() {
                                                 </div>
 
                                                 {/* Title + creator */}
-                                                <div className="relative">
-                                                    <h4 className="text-[16px] font-bold text-foreground leading-snug">{latestUpdate.title}</h4>
-                                                    {latestUpdate.creator_name && (
-                                                        <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1.5">
-                                                            <Users size={10} className="text-primary/60" /> {latestUpdate.creator_name}
-                                                        </p>
+                                                <div className="flex items-start justify-between gap-4 relative">
+                                                    <div className="relative">
+                                                        <h4 className="text-[16px] font-bold text-foreground leading-snug">{latestUpdate.title}</h4>
+                                                        {latestUpdate.creator_name && (
+                                                            <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1.5">
+                                                                <Users size={10} className="text-primary/60" /> {latestUpdate.creator_name}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    {latestUpdate.hours_spent > 0 && (
+                                                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background border border-border/50 rounded-lg">
+                                                            <Timer size={12} className="text-primary" />
+                                                            <span className="text-[13px] font-black text-foreground">{formatHours(latestUpdate.hours_spent)}</span>
+                                                        </div>
                                                     )}
                                                 </div>
 
@@ -2944,14 +2978,27 @@ export default function AdminPage() {
                                                                     onChange={e => setQvPreviewUrl(e.target.value)}
                                                                     className="flex-1 bg-card border border-border rounded-xl px-4 py-2.5 text-[13px] text-foreground focus:border-primary outline-none font-medium"
                                                                 />
-                                                                <div className="w-[100px]">
-                                                                    <input
-                                                                        type="text"
-                                                                        placeholder="Horas"
-                                                                        value={qvHours}
-                                                                        onChange={e => setQvHours(e.target.value)}
-                                                                        className="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-[14px] font-bold text-center text-foreground focus:border-primary outline-none"
-                                                                    />
+                                                                <div className="w-[160px] flex gap-2">
+                                                                    <div className="flex-1 bg-card border border-border rounded-xl flex items-center px-2 py-2.5 focus-within:border-primary">
+                                                                        <input
+                                                                            type="number"
+                                                                            placeholder="H"
+                                                                            value={qvHours}
+                                                                            onChange={e => setQvHours(e.target.value)}
+                                                                            className="w-full bg-transparent text-[14px] font-bold text-center text-foreground outline-none"
+                                                                        />
+                                                                        <span className="text-[9px] font-black text-muted-foreground">H</span>
+                                                                    </div>
+                                                                    <div className="flex-1 bg-card border border-border rounded-xl flex items-center px-2 py-2.5 focus-within:border-primary">
+                                                                        <input
+                                                                            type="number"
+                                                                            placeholder="M"
+                                                                            value={qvMinutes}
+                                                                            onChange={e => setQvMinutes(e.target.value)}
+                                                                            className="w-full bg-transparent text-[14px] font-bold text-center text-foreground outline-none"
+                                                                        />
+                                                                        <span className="text-[9px] font-black text-muted-foreground">M</span>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -2978,7 +3025,7 @@ export default function AdminPage() {
                                 </div>
 
 
-                                {/* ”€”€”€ Action Bar (always at bottom) ”€”€”€ */}
+                                {/* ── Action Bar (always at bottom) ── */}
                                 <div className="shrink-0 px-4 sm:px-6 py-3 border-t border-border bg-card/90 backdrop-blur-md flex flex-wrap items-center gap-2">
                                     {firstDenied && qvMode !== 'reply' && (
                                         <button
@@ -3009,6 +3056,9 @@ export default function AdminPage() {
                 );
             })()}
 
+                    </div>
+                )}
+
             <ImageCropperModal
                 open={showCropper}
                 onClose={() => {
@@ -3019,7 +3069,6 @@ export default function AdminPage() {
             />
         </div>
     </div>
-</div>
 )
 }
 

@@ -1,0 +1,50 @@
+[
+  {
+    "conversation_id": "6066b29d-d04f-4cde-8daf-954627824e68",
+    "user_id": "63636201-c766-4443-b88d-e419a6a1bb07",
+    "last_read_at": null,
+    "joined_at": "2026-03-20T15:46:39.666Z"
+  },
+  {
+    "conversation_id": "6066b29d-d04f-4cde-8daf-954627824e68",
+    "user_id": "dadf5472-e067-465b-8c1f-0a3569770b12",
+    "last_read_at": null,
+    "joined_at": "2026-03-20T15:46:39.666Z"
+  },
+  {
+    "conversation_id": "b6cc3870-6b9f-447a-aa45-6b67248a31eb",
+    "user_id": "678eb158-f3de-456c-bcda-0944ec0cf00a",
+    "last_read_at": null,
+    "joined_at": "2026-03-20T19:20:17.064Z"
+  },
+  {
+    "conversation_id": "b6cc3870-6b9f-447a-aa45-6b67248a31eb",
+    "user_id": "9afd3f54-7c7e-413c-ab21-c4be73c3f7a7",
+    "last_read_at": null,
+    "joined_at": "2026-03-20T19:20:17.064Z"
+  },
+  {
+    "conversation_id": "b6cc3870-6b9f-447a-aa45-6b67248a31eb",
+    "user_id": "dadf5472-e067-465b-8c1f-0a3569770b12",
+    "last_read_at": null,
+    "joined_at": "2026-03-20T19:20:17.064Z"
+  },
+  {
+    "conversation_id": "b6cc3870-6b9f-447a-aa45-6b67248a31eb",
+    "user_id": "63636201-c766-4443-b88d-e419a6a1bb07",
+    "last_read_at": "2026-03-20T22:56:54.243Z",
+    "joined_at": "2026-03-20T19:20:17.064Z"
+  },
+  {
+    "conversation_id": "5658b0d1-d30e-4e47-a0f9-c7d9102eafa2",
+    "user_id": "63636201-c766-4443-b88d-e419a6a1bb07",
+    "last_read_at": "2026-03-20T22:56:54.789Z",
+    "joined_at": "2026-03-20T15:46:29.153Z"
+  },
+  {
+    "conversation_id": "5658b0d1-d30e-4e47-a0f9-c7d9102eafa2",
+    "user_id": "678eb158-f3de-456c-bcda-0944ec0cf00a",
+    "last_read_at": "2026-03-20T23:00:34.668Z",
+    "joined_at": "2026-03-20T15:46:29.153Z"
+  }
+]

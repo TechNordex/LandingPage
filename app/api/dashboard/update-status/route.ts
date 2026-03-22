@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { realtimeEmitter, EVENTS } from '@/lib/realtime'
 
 export async function PUT(req: Request) {
     const session = await getSession()
@@ -30,6 +31,27 @@ export async function PUT(req: Request) {
             SET status = $1, feedback = $2 
             WHERE id = $3
         `, [status, feedback || null, update_id])
+
+        // Sync with the projects table for the overarching status badge
+        const projectResult = await db.query(`
+            SELECT project_id FROM project_updates WHERE id = $1
+        `, [update_id])
+
+        if (projectResult.rows.length > 0) {
+            const projectId = projectResult.rows[0].project_id
+            const previewStatus = status === 'authorized' ? 'approved' : 'rejected'
+            
+            await db.query(`
+                UPDATE projects 
+                SET preview_status = $1, 
+                    preview_feedback = $2,
+                    updated_at = now()
+                WHERE id = $3
+            `, [previewStatus, feedback || null, projectId])
+
+            // Broadcast real-time status change
+            realtimeEmitter.emit(EVENTS.STATUS_CHANGED, { project_id: projectId, status: previewStatus })
+        }
 
         return NextResponse.json({ success: true })
     } catch (error) {

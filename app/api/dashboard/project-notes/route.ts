@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { realtimeEmitter, EVENTS } from '@/lib/realtime'
 
 export async function PUT(req: Request) {
     const session = await getSession()
@@ -29,6 +30,9 @@ export async function PUT(req: Request) {
             'UPDATE project_updates SET client_note = $1 WHERE id = $2',
             [note || null, update_id]
         )
+
+        // Broadcast note addition/update
+        realtimeEmitter.emit(EVENTS.NOTE_ADDED, { update_id, note })
 
         return NextResponse.json({ success: true, client_note: note || null })
     } catch (error) {

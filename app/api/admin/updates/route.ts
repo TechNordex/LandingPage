@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { sendUpdateNotification } from '@/lib/email'
+import { realtimeEmitter, EVENTS } from '@/lib/realtime'
 
 // GET - list updates for a given project (for admin revision dropdown)
 export async function GET(req: NextRequest) {
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest) {
             if (projRes.rows.length > 0) {
                 const row = projRes.rows[0]
                 if (row.client_email) {
+                    console.log(`[updates POST] Attempting to send email to ${row.client_email} for project ${project_id}`)
                     const emailResult = await sendUpdateNotification({
                         clientName: row.client_name || 'Cliente',
                         clientEmail: row.client_email,
@@ -101,22 +103,26 @@ export async function POST(req: NextRequest) {
                         updateMessage: message || undefined,
                         updateStage: stage,
                         authorName: row.author_name || 'Equipe Nordex Tech',
+                        isRevision: !!revision_of,
                     })
                     if (emailResult.success) {
-                        console.log(`[updates POST] Email sent to ${row.client_email} | ID: ${emailResult.id}`)
+                        console.log(`[updates POST] Email SUCCESS for ${row.client_email} | ID: ${emailResult.id}`)
                     } else {
-                        console.error(`[updates POST] Email FAILED to ${row.client_email}:`, emailResult.error)
+                        console.error(`[updates POST] Email FAILED for ${row.client_email}:`, JSON.stringify(emailResult.error, null, 2))
                     }
                 } else {
-                    console.warn(`[updates POST] No client email found for project ${project_id}`)
+                    console.warn(`[updates POST] SKIP EMAIL: No client email found for project ${project_id} (Client: ${row.client_name})`)
                 }
             } else {
-                console.warn(`[updates POST] No project found for ID ${project_id}`)
+                console.warn(`[updates POST] SKIP EMAIL: Project ${project_id} not found or no client associated`)
             }
         } catch (emailErr) {
             console.error('[updates POST] Email error (continuing):', emailErr)
         }
         // ──────────────────────────────────────────────────────────────────
+
+        // Broadcast real-time update
+        realtimeEmitter.emit(EVENTS.PROJECT_UPDATED, { project_id, stage, title })
 
         return NextResponse.json({ success: true, id: insertResult.rows[0].id }, { status: 201 })
     } catch (error: any) {

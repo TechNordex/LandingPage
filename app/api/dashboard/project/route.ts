@@ -8,7 +8,7 @@ export async function GET() {
 
     try {
         const userResult = await db.query(
-            'SELECT id, name, email, avatar_url, terms_accepted_at, tour_completed_at FROM portal_users WHERE id = $1',
+            'SELECT id, name, email, avatar_url, role, terms_accepted_at, tour_completed_at FROM portal_users WHERE id = $1',
             [session.id]
         )
         const user = userResult.rows[0]
@@ -56,7 +56,7 @@ export async function GET() {
         return NextResponse.json({
             projects: projectsResult.rows,
             allUpdates: updates.rows,
-            user: { name: user.name, email: user.email, avatar_url: user.avatar_url },
+            user: { id: user.id, name: user.name, email: user.email, avatar_url: user.avatar_url, role: user.role },
             termsAccepted: !!user.terms_accepted_at,
             tourCompleted: !!user.tour_completed_at,
         })

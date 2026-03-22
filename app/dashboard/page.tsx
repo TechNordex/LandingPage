@@ -5,6 +5,8 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react'
+import useSWR, { mutate } from 'swr'
+import { useRealtime } from '@/hooks/use-realtime'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -12,13 +14,14 @@ import {
     LogOut, ExternalLink, Loader2, Link as LinkIcon,
     FileText, Activity, Info, MessageSquareText,
     Save, Check, X, ThumbsUp, ThumbsDown, Clock, AlertCircle, Users, Menu,
-    CheckCircle2, RefreshCw
+    CheckCircle2, RefreshCw, Timer, MessageCircle
 } from 'lucide-react'
 import { ProjectTracker } from '@/components/project-tracker'
 import type { Project, ProjectUpdate } from '@/lib/types'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import NordyAssistant from '@/components/nordy-assistant'
+import ChatTeam from '@/components/chat-team'
 import confetti from 'canvas-confetti'
 
 function useTypewriter(target: string, { speed = 70, startDelay = 300 } = {}) {
@@ -50,6 +53,15 @@ function useTypewriter(target: string, { speed = 70, startDelay = 300 } = {}) {
     }, [target, speed, startDelay])
 
     return { text, isDone }
+}
+
+const formatHours = (hours: number | undefined) => {
+    if (!hours || isNaN(hours) || hours === 0) return null;
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    if (h > 0 && m > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h`;
+    return `${m}m`;
 }
 
 function TypewriterTitle({ text, description }: { text: string; description?: string | null }) {
@@ -84,13 +96,25 @@ function TypewriterTitle({ text, description }: { text: string; description?: st
 
 export default function DashboardPage() {
     const router = useRouter()
-    const [data, setData] = useState<{
-        projects: Project[]
-        allUpdates: ProjectUpdate[]
-        user?: { name: string; email: string; avatar_url?: string }
-        tourCompleted?: boolean
-    } | null>(null)
-    const [loading, setLoading] = useState(true)
+    const fetcher = (url: string) => fetch(url).then((res) => {
+        if (!res.ok) throw new Error('Unauthorized')
+        return res.json()
+    })
+
+    const { data: convData } = useSWR('/api/chat/conversations', fetcher)
+    const totalUnread = useMemo(() => {
+        if (!convData?.conversations) return 0
+        return convData.conversations.reduce((acc: number, c: any) => acc + (c.unread_count || 0), 0)
+    }, [convData])
+
+    const { data: jsonData, error, isLoading } = useSWR('/api/dashboard/project', fetcher, {
+        revalidateOnFocus: true,
+        revalidateOnReconnect: true,
+    })
+
+    const data = jsonData || null
+    const loading = isLoading && !data
+
     const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
     const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -110,27 +134,52 @@ export default function DashboardPage() {
 
     // Squad Hover state (Dynamic rect positioning to escape overflow)
     const [hoverSquadRect, setHoverSquadRect] = useState<{ top: number, left: number, member: any } | null>(null)
+    const [showChatPopup, setShowChatPopup] = useState(false)
+    const [chatConvId, setChatConvId] = useState<string | null>(null)
+    const [initiatingChatId, setInitiatingChatId] = useState<string | null>(null)
+
+    // Real-time listener
+    useRealtime()
 
     useEffect(() => {
-        fetch('/api/dashboard/project')
-            .then((res) => {
-                if (!res.ok) throw new Error('Unauthorized')
-                return res.json()
+        if (jsonData) {
+            if (jsonData.projects && jsonData.projects.length > 0 && !activeProjectId) {
+                setActiveProjectId(jsonData.projects[0].id)
+            }
+            // Server-side check — termsAccepted is per-user, not per-browser
+            if (!jsonData.termsAccepted) {
+                setShowWelcome(true)
+                triggerConfetti()
+            }
+        }
+    }, [jsonData, activeProjectId])
+
+    const handleStartChat = async (member: any) => {
+        if (!activeProjectId) return
+        try {
+            setInitiatingChatId(member.id)
+            const res = await fetch('/api/chat/init', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetUserId: member.id, projectId: activeProjectId })
             })
-            .then((jsonData) => {
-                setData(jsonData)
-                if (jsonData.projects && jsonData.projects.length > 0) {
-                    setActiveProjectId(jsonData.projects[0].id)
-                }
-                // Server-side check ‚¬€ termsAccepted is per-user, not per-browser
-                if (!jsonData.termsAccepted) {
-                    setShowWelcome(true)
-                    triggerConfetti()
-                }
-            })
-            .catch(() => router.push('/login'))
-            .finally(() => setLoading(false))
-    }, [router])
+            const data = await res.json()
+            if (data.conversationId) {
+                setChatConvId(data.conversationId)
+                setShowChatPopup(true)
+                // Close sidebar on mobile
+                setSidebarOpen(false)
+            }
+        } catch (error) {
+            console.error('Error starting chat:', error)
+        } finally {
+            setInitiatingChatId(null)
+        }
+    }
+
+    useEffect(() => {
+        if (error) router.push('/login')
+    }, [error, router])
 
     useEffect(() => {
         const handleTourStep = (e: any) => {
@@ -161,7 +210,7 @@ export default function DashboardPage() {
         try {
             await fetch('/api/dashboard/accept-terms', { method: 'POST' })
         } catch {
-            // Non-critical ‚¬€ popup is hidden client-side already
+            // Non-critical ‚¬€  popup is hidden client-side already
         }
     }
 
@@ -179,10 +228,10 @@ export default function DashboardPage() {
         if (!data) return
         setSavingNoteId(updateId)
         const previousUpdates = [...data.allUpdates]
-        setData({
+        mutate('/api/dashboard/project', {
             ...data,
-            allUpdates: data.allUpdates.map(u => u.id === updateId ? { ...u, client_note: tempNoteValue } : u)
-        })
+            allUpdates: data.allUpdates.map((u: ProjectUpdate) => u.id === updateId ? { ...u, client_note: tempNoteValue } : u)
+        }, false)
 
         try {
             const res = await fetch('/api/dashboard/project-notes', {
@@ -193,7 +242,7 @@ export default function DashboardPage() {
             if (!res.ok) throw new Error()
             setEditingNoteId(null)
         } catch {
-            setData({ ...data, allUpdates: previousUpdates })
+            mutate('/api/dashboard/project')
             alert('Erro ao salvar nota')
         } finally {
             setSavingNoteId(null)
@@ -206,10 +255,10 @@ export default function DashboardPage() {
         const previousUpdates = [...data.allUpdates]
 
         // Optimistic update
-        setData({
+        mutate('/api/dashboard/project', {
             ...data,
-            allUpdates: data.allUpdates.map(u => u.id === updateId ? { ...u, status, feedback: feedback || null } : u)
-        })
+            allUpdates: data.allUpdates.map((u: ProjectUpdate) => u.id === updateId ? { ...u, status, feedback: feedback || null } : u)
+        }, false)
 
         try {
             const res = await fetch('/api/dashboard/update-status', {
@@ -221,8 +270,8 @@ export default function DashboardPage() {
             setShowUpdateRejectionFormId(null)
             setUpdateRejectionFeedback('')
         } catch {
-            setData({ ...data, allUpdates: previousUpdates })
-            alert('Erro ao processar sua decisáo')
+            mutate('/api/dashboard/project')
+            alert('Erro ao processar sua decisão')
         } finally {
             setApprovingUpdateId(null)
         }
@@ -241,19 +290,19 @@ export default function DashboardPage() {
     }
 
     const markAllAsViewed = async () => {
-        const unviewedIds = updates.filter(u => u.preview_url && !u.viewed_at).map(u => u.id)
+        const unviewedIds = (updates as any[]).filter((u: any) => u.preview_url && !u.viewed_at).map((u: any) => u.id)
         if (unviewedIds.length === 0) return
 
         // Optimistic local update
-        setData(prev => prev ? {
-            ...prev,
-            allUpdates: prev.allUpdates.map(u =>
+        mutate('/api/dashboard/project', {
+            ...data,
+            allUpdates: data.allUpdates.map((u: ProjectUpdate) =>
                 unviewedIds.includes(u.id) ? { ...u, viewed_at: new Date().toISOString() } : u
             )
-        } : prev)
+        }, false)
 
         try {
-            await Promise.all(unviewedIds.map(id =>
+            await Promise.all(unviewedIds.map((id: any) =>
                 fetch('/api/dashboard/update-viewed', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -271,12 +320,12 @@ export default function DashboardPage() {
     }
 
     const { projects, allUpdates, user } = data || {}
-    const project = projects?.find(p => p.id === activeProjectId) || null
-    const updates = allUpdates?.filter(u =>
+    const project = projects?.find((p: any) => p.id === activeProjectId) || null
+    const updates = allUpdates?.filter((u: any) =>
         String(u.project_id).trim().toLowerCase() === String(activeProjectId).trim().toLowerCase()
     ) || []
 
-    const hasUnviewedUpdates = updates.some(u => u.preview_url && !u.viewed_at)
+    const hasUnviewedUpdates = updates.some((u: any) => u.preview_url && !u.viewed_at)
 
     // --- Mini-Dashboard Metrics ---
     const totalUpdates = updates.length;
@@ -339,7 +388,7 @@ export default function DashboardPage() {
                 {/* Project Nav */}
                 <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/50 px-3 mb-3">Meus Projetos</p>
-                    {projects && projects.length > 0 ? projects.map(p => (
+                    {projects && projects.length > 0 ? projects.map((p: any) => (
                         <button
                             key={p.id}
                             onClick={() => { setActiveProjectId(p.id); setSidebarOpen(false) }}
@@ -400,21 +449,51 @@ export default function DashboardPage() {
                             {/* Squad Info */}
                             {project.squad && project.squad.length > 0 && (
                                 <div id="tour-squad" className="space-y-3 pb-4">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-primary flex items-center gap-2">
-                                        <Users size={12} /> Squad de Especialistas
-                                    </span>
-                                    <div className="space-y-2.5">
-                                        {project.squad.map(member => (
-                                            <div
-                                                key={member.id}
-                                                className="relative"
-                                                onMouseEnter={(e) => {
-                                                    const rect = e.currentTarget.getBoundingClientRect()
-                                                    setHoverSquadRect({ top: rect.top, left: rect.right, member })
-                                                }}
-                                                onMouseLeave={() => setHoverSquadRect(null)}
-                                            >
-                                                <div className="flex items-center gap-3 bg-secondary/20 border border-border/50 rounded-xl p-2 hover:bg-secondary/40 transition-all cursor-help group shadow-sm">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] text-primary flex items-center gap-1.5 truncate">
+                                            <Users size={12} className="shrink-0" /> Squad Especialista
+                                        </span>
+                                        <button 
+                                            id="btn-mensagem-squad"
+                                            onClick={async () => {
+                                                if (initiatingChatId === 'squad-group') return
+                                                setInitiatingChatId('squad-group')
+                                                try {
+                                                    const res = await fetch('/api/chat/init', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ isGroup: true, projectId: activeProjectId })
+                                                    })
+                                                    const data = await res.json()
+                                                    if (data.conversationId) {
+                                                        setChatConvId(data.conversationId)
+                                                        setShowChatPopup(true)
+                                                    }
+                                                } catch (err) {} finally { setInitiatingChatId(null) }
+                                            }}
+                                            className="text-[10px] font-bold text-primary hover:text-primary-foreground bg-primary/10 hover:bg-primary border border-primary/20 px-2 py-1 rounded transition-all flex items-center gap-1.5"
+                                        >
+                                            {initiatingChatId === 'squad-group' ? <Loader2 size={10} className="animate-spin" /> : <MessageSquareText size={10} />}
+                                            MENSAGEM SQUAD
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                    {project.squad.map((member: any, i: number) => (
+                                        <div 
+                                            key={i}
+                                            className="group/member relative"
+                                            onMouseEnter={(e) => {
+                                                const rect = e.currentTarget.getBoundingClientRect()
+                                                setHoverSquadRect({
+                                                    top: rect.top,
+                                                    left: rect.right,
+                                                    member
+                                                })
+                                            }}
+                                            onMouseLeave={() => setHoverSquadRect(null)}
+                                            onClick={() => handleStartChat(member)}
+                                        >
+                                                <div className="flex items-center gap-3 bg-secondary/20 border border-border/50 rounded-xl p-2 hover:bg-secondary/40 transition-all cursor-pointer group shadow-sm">
                                                     <div className="w-8 h-8 rounded-full bg-background border border-border overflow-hidden shrink-0 aspect-square relative z-10 text-xs">
                                                         {member.avatar_url ? (
                                                             <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
@@ -422,9 +501,14 @@ export default function DashboardPage() {
                                                             <div className="w-full h-full flex items-center justify-center text-primary font-bold">{member.name.charAt(0)}</div>
                                                         )}
                                                     </div>
-                                                    <div className="min-w-0 flex-1 relative z-10">
-                                                        <p className="text-[12px] font-bold text-foreground leading-none truncate">{member.name.split(' ')[0]}</p>
-                                                        <p className="text-[9px] text-muted-foreground mt-1 font-medium truncate uppercase tracking-tighter">{member.position || 'Especialista'}</p>
+                                                    <div className="min-w-0 flex-1 relative z-10 flex items-center justify-between">
+                                                        <div>
+                                                            <p className="text-[12px] font-bold text-foreground leading-none truncate">{member.name.split(' ')[0]}</p>
+                                                            <p className="text-[9px] text-muted-foreground mt-1 font-medium truncate uppercase tracking-tighter">{member.position || 'Especialista'}</p>
+                                                        </div>
+                                                        <div className="w-6 h-6 rounded-full bg-background/50 border border-border flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            {initiatingChatId === member.id ? <Loader2 size={10} className="animate-spin text-primary" /> : <MessageCircle size={12} className="text-primary" />}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -513,7 +597,7 @@ export default function DashboardPage() {
                                     </div>
 
                                     {/* Mini Dashboard Metrics container */}
-                                    <div className="rounded-2xl bg-card border border-border p-6 flex flex-col relative h-[280px] w-full">
+                                    <div id="tour-metrics" className="rounded-2xl bg-card border border-border p-6 flex flex-col relative h-[280px] w-full">
                                         <div className="flex items-center gap-3 mb-5 relative z-10">
                                             <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
                                                 <Activity size={16} />
@@ -539,7 +623,7 @@ export default function DashboardPage() {
 
                                             {/* Metric 3 */}
                                             <div className="bg-secondary/30 rounded-xl border border-border/50 p-4 flex flex-col justify-center">
-                                                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Ãšltima Entrega</p>
+                                                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Última Entrega</p>
                                                 <p className="text-lg font-bold text-primary truncate leading-tight mt-1">{lastUpdateDate}</p>
                                             </div>
 
@@ -554,21 +638,18 @@ export default function DashboardPage() {
                                     </div>
                                 </div>
 
-                                {/* Updates & Notes Feed Card */}
-                                <div id="tour-updates" tabIndex={0} className="lg:col-span-2 rounded-2xl bg-card border border-border h-[700px] overflow-y-auto custom-scrollbar overscroll-contain focus:outline-none flex flex-col">
-                                    <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md px-8 py-6 border-b border-border flex items-center justify-between shrink-0">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-                                                <FileText size={16} />
-                                            </div>
-                                            <div>
-                                                <h2 className="text-[16px] font-semibold text-foreground">Histórico e Atualizações</h2>
-                                                <p className="text-[12px] text-muted-foreground mt-0.5">Acompanhe o que foi feito e deixe suas observações.</p>
-                                            </div>
+                                {/* Header: Feed vs Chat Popup trigger */}
+                                <div id="tour-updates" tabIndex={0} className="lg:col-span-2 rounded-2xl bg-card border border-border h-[770px] overflow-hidden focus:outline-none flex flex-col">
+                                    <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md px-4 sm:px-8 py-4 sm:py-5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between shrink-0 gap-4">
+                                        <div className="flex items-center w-full">
+                                            <h2 className="text-[16px] font-black tracking-tight flex items-center gap-2">
+                                                <Activity className="text-primary" size={18} /> Histórico e Atualizações
+                                            </h2>
                                         </div>
                                     </div>
 
-                                    <div className="px-8 py-8">
+                                    {/* Feed Content */}
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar px-5 sm:px-8 py-8 overscroll-contain">
                                         {updates?.length === 0 ? (
                                             <div className="h-[400px] flex flex-col items-center justify-center text-center">
                                                 <div className="w-16 h-16 rounded-full bg-secondary/50 border border-border flex items-center justify-center mb-4 text-muted-foreground">
@@ -579,17 +660,17 @@ export default function DashboardPage() {
                                             </div>
                                         ) : (
                                             <div className="relative border-l-2 border-border/50 ml-4 space-y-10 pb-6">
-                                                {updates?.map((upd) => {
+                                                {updates?.map((upd: ProjectUpdate) => {
                                                             const isEditing = editingNoteId === upd.id
                                                             const hasNote = Boolean(upd.client_note)
 
                                                             // Revision system: detect if this update is a correction of another
                                                             const isCorrection = Boolean(upd.revision_of)
                                                             const originalUpdate = isCorrection
-                                                                ? updates.find(u => u.id === upd.revision_of)
+                                                                ? updates.find((u: ProjectUpdate) => u.id === upd.revision_of)
                                                                 : null
                                                             // Detect if this update was superseded by a later correction
-                                                            const correctionUpdate = updates.find(u => u.revision_of === upd.id)
+                                                            const correctionUpdate = updates.find((u: ProjectUpdate) => u.revision_of === upd.id)
                                                             const isSuperseded = Boolean(correctionUpdate)
 
                                                             return (
@@ -628,17 +709,25 @@ export default function DashboardPage() {
                                                                                 )}
                                                                             </div>
                                                                             <span className="text-[12px] font-medium text-muted-foreground">
-                                                                                {format(new Date(upd.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
-                                                                            </span>
+                                                                                 {format(new Date(upd.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
+                                                                             </span>
                                                                         </div>
-                                                                        <h4 className="text-[16px] font-semibold text-foreground mb-2 flex items-center gap-2">
-                                                                            {upd.title}
-                                                                            {isSuperseded && (
-                                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-[9px] font-black uppercase tracking-wider">
-                                                                                    <CheckCircle2 size={10} /> Resolvido
-                                                                                </span>
+                                                                        <div className="flex items-start justify-between gap-4 mb-2">
+                                                                            <h4 className="text-[16px] font-semibold text-foreground flex items-center gap-2">
+                                                                                {upd.title}
+                                                                                {isSuperseded && (
+                                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-[9px] font-black uppercase tracking-wider">
+                                                                                        <CheckCircle2 size={10} /> Resolvido
+                                                                                    </span>
+                                                                                )}
+                                                                            </h4>
+                                                                            {upd.hours_spent && upd.hours_spent > 0 && (
+                                                                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background border border-border/50 rounded-lg shrink-0">
+                                                                                    <Timer size={12} className="text-primary" />
+                                                                                    <span className="text-[13px] font-black text-foreground">{formatHours(upd.hours_spent)}</span>
+                                                                                </div>
                                                                             )}
-                                                                        </h4>
+                                                                        </div>
 
                                                                         {/* Revision Banner */}
                                                                         {isCorrection && originalUpdate && (
@@ -702,10 +791,10 @@ export default function DashboardPage() {
                                                                                         onClick={() => {
                                                                                             if (!upd.viewed_at) {
                                                                                                 markAsViewed(upd.id);
-                                                                                                setData(prev => prev ? {
+                                                                                                mutate('/api/dashboard/project', (prev: any) => prev ? {
                                                                                                     ...prev,
-                                                                                                    allUpdates: prev.allUpdates.map(u => u.id === upd.id ? { ...u, viewed_at: new Date().toISOString() } : u)
-                                                                                                } : prev);
+                                                                                                    allUpdates: prev.allUpdates.map((u: ProjectUpdate) => u.id === upd.id ? { ...u, viewed_at: new Date().toISOString() } : u)
+                                                                                                } : prev, false);
                                                                                             }
                                                                                         }}
                                                                                         className={`h-8 px-3 rounded-lg border flex items-center gap-1.5 transition-all ml-auto text-[11px] font-bold ${!upd.viewed_at
@@ -750,7 +839,7 @@ export default function DashboardPage() {
                                                                                         className="px-4 py-1.5 bg-red-500 text-white rounded-lg text-[11px] font-bold hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20 flex items-center gap-1.5"
                                                                                     >
                                                                                         {approvingUpdateId === upd.id && <Loader2 size={12} className="animate-spin" />}
-                                                                                        Confirmar Restriá§áo
+                                                                                        Confirmar Restrição
                                                                                     </button>
                                                                                 </div>
                                                                             </div>
@@ -815,109 +904,145 @@ export default function DashboardPage() {
                                                                 </div>
                                                             )
                                                         })}
-                                                    </div>
-                                                )}
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
-                                </>
-                    )}
+                                </div>
                             </div>
-                        </div>
+                        </>
+                    )}
+                </div>
+            </div>
 
-                    {/* Welcome Popup */}
-                    {showWelcome && (
-                        <div className="fixed inset-0 z-50 flex justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in overflow-y-auto custom-scrollbar">
-                            <div className="bg-card border border-border rounded-2xl p-8 max-w-lg w-full shadow-2xl relative my-auto overflow-hidden">
-                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/20 via-primary to-primary/20" />
-                                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-6">
-                                    <Image
-                                        src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png"
-                                        alt="Nordex"
-                                        width={80}
-                                        height={24}
-                                        className="h-5 w-auto"
-                                    />
+
+            {/* Chat Modal Overlay — opens only via squad member click or MENSAGEM SQUAD */}
+            <AnimatePresence>
+                {showChatPopup && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            key="chat-backdrop"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => { setShowChatPopup(false); setChatConvId(null) }}
+                            className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm"
+                        />
+                        {/* Panel */}
+                        <motion.div
+                            key="chat-panel"
+                            initial={{ opacity: 0, scale: 0.96, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.96, y: 20 }}
+                            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                            className="fixed z-[120] inset-4 sm:inset-8 md:inset-12 lg:inset-16 xl:inset-20 2xl:inset-24 flex"
+                        >
+                            <ChatTeam
+                                currentUser={{
+                                    id: user?.id || '',
+                                    name: user?.name || '',
+                                    avatar_url: user?.avatar_url,
+                                    role: user?.role || 'client'
+                                }}
+                                projectId={activeProjectId || undefined}
+                                defaultConversationId={chatConvId}
+                                onClose={() => { setShowChatPopup(false); setChatConvId(null) }}
+                            />
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+
+            {/* Special Modal Popups */}
+            <AnimatePresence>
+                {/* Welcome Popup */}
+                {showWelcome && (
+                    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-500">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            className="bg-card border border-border rounded-2xl max-w-xl w-full p-8 shadow-2xl relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-3xl" />
+                            
+                            <div className="flex flex-col items-center text-center relative z-10">
+                                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-6 animate-bounce">
+                                    <FileText size={32} />
                                 </div>
-                                <h2 className="text-2xl font-bold text-foreground mb-3 tracking-tight">
-                                    Bem-vindo ao Nordex Client Portal.
-                                </h2>
-                                <div className="text-[14.5px] text-muted-foreground leading-relaxed mb-6 space-y-4">
-                                    <p>
-                                        Olá¡, <b>{user?.name.split(' ')[0]}</b>! Este á© o seu espaá§o reservado e seguro para acompanhar o <b>{project?.name}</b>.
+                                
+                                <h2 className="text-2xl font-bold mb-4 tracking-tight">Acordo de Confidencialidade</h2>
+                                
+                                <div className="bg-secondary/30 rounded-xl p-5 text-left mb-6 border border-border/50 max-h-60 overflow-y-auto custom-scrollbar">
+                                    <p className="text-[13px] text-muted-foreground leading-relaxed mb-4">
+                                        Para garantir a segurança e a integridade de todos os projetos na plataforma Nordex, solicitamos que você aceite os nossos termos de confidencialidade antes de prosseguir.
                                     </p>
-
-                                    <div className="p-4 bg-secondary/50 rounded-xl border border-border/50 text-[13px]">
-                                        <h3 className="font-bold text-foreground mb-2 flex items-center gap-2">
-                                            <AlertCircle size={15} className="text-primary" /> Termo de Confidencialidade e Sigilo
-                                        </h3>
-                                        <p className="leading-relaxed opacity-90">
-                                            Ao prosseguir, você concorda expressamente em manter escopo de sigilo sobre metodologias, interfaces, e lógicas apresentadas neste ambiente. A reprodução, engenharia reversa, ou o compartilhamento indevido destes dados estão sujeitos às penalidades previstas na lei de proteção intelectual.
-                                        </p>
-                                    </div>
+                                    <ul className="text-[12px] text-muted-foreground space-y-2 list-disc pl-4">
+                                        <li>Não compartilhar credenciais ou links de acesso;</li>
+                                        <li>Manter sigilo sobre as estratégias e tecnologias discutidas;</li>
+                                        <li>Proteger os dados de terceiros acessados no portal;</li>
+                                        <li>Reportar imediatamente qualquer atividade suspeita.</li>
+                                    </ul>
                                 </div>
 
-                                <label className="flex items-start gap-3 mb-6 cursor-pointer group">
-                                    <div className="relative flex items-center justify-center mt-0.5 shrink-0">
-                                        <input
-                                            type="checkbox"
-                                            checked={agreedToTerms}
-                                            onChange={(e) => setAgreedToTerms(e.target.checked)}
-                                            className="peer appearance-none w-5 h-5 border-2 border-border rounded-md checked:bg-primary checked:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer bg-background"
-                                        />
-                                        <Check size={12} className="absolute text-primary-foreground opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" strokeWidth={4} />
-                                    </div>
-                                    <span className="text-[13px] font-medium text-foreground/80 group-hover:text-foreground transition-colors leading-snug select-none">
-                                        Eu declaro que li, entendi e concordo integralmente com o Termo de Confidencialidade da plataforma.
-                                    </span>
-                                </label>
+                                <div className="flex items-center gap-3 mb-8 w-full justify-center">
+                                    <button 
+                                        onClick={() => setAgreedToTerms(!agreedToTerms)}
+                                        className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${
+                                            agreedToTerms ? 'bg-primary border-primary text-primary-foreground' : 'bg-secondary border-border'
+                                        }`}
+                                    >
+                                        {agreedToTerms && <Check size={14} />}
+                                    </button>
+                                    <p className="text-[13px] font-medium">Li e concordo com os termos de confidencialidade.</p>
+                                </div>
 
-                                <button
+                                <button 
                                     onClick={closeWelcome}
                                     disabled={!agreedToTerms}
-                                    className="w-full h-12 bg-foreground text-background font-semibold text-[14px] rounded-xl transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-foreground/90 disabled:hover:bg-foreground"
+                                    className="w-full bg-primary text-primary-foreground h-12 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20"
                                 >
-                                    Assinar e Entrar no Painel
+                                    <CheckCircle2 size={18} />
+                                    Iniciar meu projeto agora
                                 </button>
                             </div>
-                        </div>
-                    )}
+                        </motion.div>
+                    </div>
+                )}
 
-                    {/* Virtual Assistant */}
-                    <NordyAssistant project={project} tourCompleted={data?.tourCompleted} tourEnabled={!showWelcome} />
-
-                    {/* Global Squad Hover Popover */}
-                    <AnimatePresence>
-                        {hoverSquadRect && hoverSquadRect.member?.bio && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9, x: -10 }}
-                                animate={{ opacity: 1, scale: 1, x: 0 }}
-                                exit={{ opacity: 0, scale: 0.9, x: -10 }}
-                                className="fixed z-[100] w-[280px] sm:w-[320px] pointer-events-none"
-                                style={{
-                                    top: Math.max(10, hoverSquadRect.top - 20),
-                                    left: hoverSquadRect.left + 16
-                                }}
-                            >
-                                <div className="bg-card/95 backdrop-blur-xl border border-primary/20 p-5 rounded-2xl shadow-2xl overflow-hidden relative">
-                                    <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-3xl -mr-8 -mt-8" />
-                                    <div className="relative z-10">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
-                                                {hoverSquadRect.member?.position}
-                                            </span>
-                                        </div>
-                                        <p className="text-[14px] font-bold text-foreground mb-2">{hoverSquadRect.member?.name}</p>
-                                        <p className="text-[12px] sm:text-[13px] text-muted-foreground leading-relaxed font-medium">
-                                            {hoverSquadRect.member?.bio}
-                                        </p>
-                                    </div>
+                {/* Global Squad Hover Popover */}
+                {hoverSquadRect?.member?.bio && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, x: -10 }}
+                        className="fixed z-[200] w-[280px] sm:w-[320px] pointer-events-none"
+                        style={{
+                            top: Math.max(10, (hoverSquadRect?.top || 0) - 20),
+                            left: (hoverSquadRect?.left || 0) + 16
+                        }}
+                    >
+                        <div className="bg-card/95 backdrop-blur-xl border border-primary/20 p-5 rounded-2xl shadow-2xl overflow-hidden relative border-l-primary border-l-4">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-3xl -mr-8 -mt-8" />
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                                        {hoverSquadRect.member.position || 'Especialista'}
+                                    </span>
                                 </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-                )
-}
+                                <p className="text-[14px] font-bold text-foreground mb-2">{hoverSquadRect.member.name}</p>
+                                <p className="text-[12px] sm:text-[13px] text-muted-foreground leading-relaxed font-medium">
+                                    {hoverSquadRect.member.bio}
+                                </p>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
+            {/* Virtual Assistant */}
+            <NordyAssistant project={project} tourCompleted={data?.tourCompleted} tourEnabled={!showWelcome} />
+        </div>
+    )
+}

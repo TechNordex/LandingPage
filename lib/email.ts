@@ -116,82 +116,95 @@ function renderTemplate(template: string, vars: Record<string, string>): string 
 }
 
 export async function sendUpdateNotification({
-  clientName,
-  clientEmail,
-  projectName,
-  updateTitle,
-  updateMessage,
-  updateStage,
-  authorName,
+    clientName,
+    clientEmail,
+    projectName,
+    updateTitle,
+    updateMessage,
+    updateStage,
+    authorName,
+    isRevision = false,
 }: {
-  clientName: string
-  clientEmail: string
-  projectName: string
-  updateTitle: string
-  updateMessage?: string
-  updateStage: number
-  authorName: string
+    clientName: string
+    clientEmail: string
+    projectName: string
+    updateTitle: string
+    updateMessage?: string
+    updateStage: number
+    authorName: string
+    isRevision?: boolean
 }) {
-  try {
-    // Try to get custom template from DB, fallback to default
-    let templateHtml = DEFAULT_TEMPLATE
-    let customSubject: string | null = null
-
     try {
-      const res = await db.query('SELECT html, subject FROM email_templates WHERE key = $1 LIMIT 1', ['update_notification'])
-      if (res.rows.length > 0) {
-        if (res.rows[0].html) templateHtml = res.rows[0].html
-        if (res.rows[0].subject) customSubject = res.rows[0].subject
-      }
-    } catch {
-      // Table may not exist yet — use default
+        console.log(`[email] Starting notification for ${clientEmail} (Project: ${projectName}, Revision: ${isRevision})`)
+        
+        let templateHtml = DEFAULT_TEMPLATE
+        let customSubject: string | null = null
+
+        try {
+            const res = await db.query('SELECT html, subject FROM email_templates WHERE key = $1 LIMIT 1', ['update_notification'])
+            if (res.rows.length > 0) {
+                if (res.rows[0].html) templateHtml = res.rows[0].html
+                if (res.rows[0].subject) customSubject = res.rows[0].subject
+                console.log(`[email] Using custom template for notification`)
+            }
+        } catch (dbErr) {
+            console.warn(`[email] Could not fetch template from DB, using default:`, (dbErr as any).message)
+        }
+
+        const portalUrl = (process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.nordex.tech').replace(/\/dashboard$/, '').replace(/\/$/, '') + '/login'
+        const authorInitial = authorName ? authorName.charAt(0).toUpperCase() : 'N'
+        const year = new Date().getFullYear().toString()
+
+        const html = renderTemplate(templateHtml, {
+            clientName,
+            projectName,
+            updateTitle,
+            updateMessage: updateMessage || '',
+            updateStage: String(updateStage),
+            authorName,
+            authorInitial,
+            portalUrl,
+            year,
+        })
+
+        // Render subject if it's custom
+        let finalSubject = isRevision 
+            ? `[REVISÃO] [${projectName}] Atualização: ${updateTitle}`
+            : `[${projectName}] Nova atualização: ${updateTitle}`
+            
+        if (customSubject) {
+            finalSubject = renderTemplate(customSubject, {
+                clientName,
+                projectName,
+                updateTitle,
+                updateStage: String(updateStage),
+                authorName,
+                portalUrl,
+            })
+            if (isRevision && !finalSubject.includes('[REVISÃO]')) {
+                finalSubject = `[REVISÃO] ${finalSubject}`
+            }
+        }
+
+        console.log(`[email] Sending via Resend. Subject: ${finalSubject}`)
+
+        const { data, error } = await getResend().emails.send({
+            from: process.env.RESEND_FROM || 'Nordex Tech <noreply@nordex.tech>',
+            to: [clientEmail],
+            subject: finalSubject,
+            html,
+        })
+
+        if (error) {
+            console.error('[email] Resend API error:', JSON.stringify(error, null, 2))
+            return { success: false, error }
+        }
+
+        console.log('[email] Sent successfully to', clientEmail, '| Resend ID:', data?.id)
+        return { success: true, id: data?.id }
+    } catch (err) {
+        console.error('[email] Unexpected error in sendUpdateNotification:', err)
+        return { success: false, error: err }
     }
-
-    const portalUrl = (process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.nordex.tech').replace(/\/dashboard$/, '') + '/login'
-    const authorInitial = authorName ? authorName.charAt(0).toUpperCase() : 'N'
-    const year = new Date().getFullYear().toString()
-
-    const html = renderTemplate(templateHtml, {
-      clientName,
-      projectName,
-      updateTitle,
-      updateMessage: updateMessage || '',
-      updateStage: String(updateStage),
-      authorName,
-      authorInitial,
-      portalUrl,
-      year,
-    })
-
-    // Render subject if it's custom
-    let finalSubject = `[${projectName}] Nova atualização: ${updateTitle}`
-    if (customSubject) {
-      finalSubject = renderTemplate(customSubject, {
-        clientName,
-        projectName,
-        updateTitle,
-        updateStage: String(updateStage),
-        authorName,
-        portalUrl,
-      })
-    }
-
-    const { data, error } = await getResend().emails.send({
-      from: process.env.RESEND_FROM || 'Nordex Tech <noreply@nordex.tech>',
-      to: [clientEmail],
-      subject: finalSubject,
-      html,
-    })
-
-    if (error) {
-      console.error('[email] Resend error:', error)
-      return { success: false, error }
-    }
-
-    console.log('[email] Sent successfully to', clientEmail, '| id:', data?.id)
-    return { success: true, id: data?.id }
-  } catch (err) {
-    console.error('[email] Unexpected error:', err)
-    return { success: false, error: err }
-  }
 }
+

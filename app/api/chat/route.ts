@@ -64,7 +64,7 @@ Se a pergunta não estiver relacionada ao documento ou ao contexto do portal, re
 Seja CONCISO: responda em no máximo 5 frases. Vá direto ao ponto.
 Se o usuário quiser falar com um humano, pedir um orçamento detalhado, agendar uma reunião ou se você não souber responder algo, sugira sempre que ele entre em contato com nossa equipe pelo WhatsApp através do link: https://wa.me/5581984889683 ou pelo e-mail: contato@nordex.tech
 
-REGRA ABSOLUTA DE FORMATAÇÃO: Você deve escrever APENAS texto puro e simples. É PROIBIDO usar qualquer elemento Markdown ou de formatação como: asteriscos (*), dois asteriscos (**), cerquilha (#), underline (_), hífen (-) para listas, ou qualquer outro símbolo especial de formatação. Escreva frases normais como em uma conversa, usando vírgulas e pontos para separar ideias. Lembre-se, apenas texto puro, sem formatação.`,
+REGRA ABSOLUTA DE FORMATAÇÁO: Você deve escrever APENAS texto puro e simples. É PROIBIDO usar qualquer elemento Markdown ou de formatação como: asteriscos (*), dois asteriscos (**), cerquilha (#), underline (_), hífen (-) para listas, ou qualquer outro símbolo especial de formatação. Escreva frases normais como em uma conversa, usando vírgulas e pontos para separar ideias. Lembre-se, apenas texto puro, sem formatação.`,
             },
         })
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { realtimeEmitter, EVENTS } from '@/lib/realtime'
 
 export async function GET(req: NextRequest) {
     const session = await getSession()
@@ -59,7 +60,11 @@ export async function POST(req: NextRequest) {
                 `UPDATE projects SET deleted_at = NULL, updated_at = NOW() WHERE id = $1 RETURNING *`,
                 [id]
             )
-            return NextResponse.json({ project: result.rows[0] })
+            const restoredProject = result.rows[0]
+            if (restoredProject) {
+                realtimeEmitter.emit(EVENTS.PROJECT_UPDATED, { project_id: id })
+            }
+            return NextResponse.json({ project: restoredProject })
         }
 
         if (!client_id || !name) {
@@ -71,7 +76,12 @@ export async function POST(req: NextRequest) {
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
             [client_id, name, description || null, preview_url || null, estimated_hours || null, body.stage_url || null, body.prod_url || null]
         )
-        return NextResponse.json({ project: result.rows[0] }, { status: 201 })
+        const newProject = result.rows[0]
+        
+        // Broadcast new project
+        realtimeEmitter.emit(EVENTS.PROJECT_UPDATED, { client_id, project_id: newProject.id })
+
+        return NextResponse.json({ project: newProject }, { status: 201 })
     } catch (error) {
         console.error('[admin/projects POST]', error)
         return NextResponse.json({ error: 'Erro ao criar/restaurar projeto' }, { status: 500 })
@@ -101,8 +111,12 @@ export async function PUT(req: NextRequest) {
         if (result.rows.length === 0) {
             return NextResponse.json({ error: 'Projeto não encontrado' }, { status: 404 })
         }
+
+        const updatedProject = result.rows[0]
+        // Broadcast update
+        realtimeEmitter.emit(EVENTS.PROJECT_UPDATED, { project_id: id })
         
-        return NextResponse.json({ project: result.rows[0] })
+        return NextResponse.json({ project: updatedProject })
     } catch (error) {
         console.error('[admin/projects PUT]', error)
         return NextResponse.json({ error: 'Erro ao atualizar projeto' }, { status: 500 })
@@ -126,9 +140,11 @@ export async function DELETE(req: NextRequest) {
 
         if (permanent) {
             await db.query('DELETE FROM projects WHERE id = $1', [id])
+            realtimeEmitter.emit(EVENTS.PROJECT_UPDATED, { project_id: id, deleted: true })
             return NextResponse.json({ message: 'Projeto excluído permanentemente' })
         } else {
             await db.query('UPDATE projects SET deleted_at = NOW() WHERE id = $1', [id])
+            realtimeEmitter.emit(EVENTS.PROJECT_UPDATED, { project_id: id, trashed: true })
             return NextResponse.json({ message: 'Projeto movido para a lixeira' })
         }
     } catch (error) {

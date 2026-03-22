@@ -4,12 +4,12 @@ import './globals.css'
 import { SmoothScrolling } from '@/components/smooth-scrolling'
 
 const inter = Inter({
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext'],
   variable: '--font-inter',
 })
 
 const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext'],
   variable: '--font-space-grotesk',
 })
 

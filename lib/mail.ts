@@ -66,7 +66,7 @@ export async function sendClientUpdateEmail({
     </p>
 
     <div style="text-align: center; margin-top: 32px;">
-      <a href="https://nordex.tech/dashboard" style="display: inline-block; background-color: ${NORDEX_GOLD}; color: #000000; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: bold; font-size: 15px; box-shadow: 0 4px 15px rgba(245, 168, 0, 0.2);">Acessar Painel do Cliente</a>
+      <a href="https://nordex.tech/login" style="display: inline-block; background-color: ${NORDEX_GOLD}; color: #000000; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-weight: bold; font-size: 15px; box-shadow: 0 4px 15px rgba(245, 168, 0, 0.2);">Acessar Painel do Cliente</a>
     </div>
   `
 
