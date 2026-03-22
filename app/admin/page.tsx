@@ -958,7 +958,7 @@ export default function AdminPage() {
     ] as const
 
     return (
-        <div className="min-h-screen bg-background text-foreground flex selection:bg-primary/30">
+        <div className="h-screen overflow-hidden bg-background text-foreground flex selection:bg-primary/30">
 
             {/* ---------- SIDEBAR ---------- */}
             {sidebarOpen && (
