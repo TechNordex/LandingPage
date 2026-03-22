@@ -7,49 +7,61 @@ export async function POST(req: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     try {
-        const { targetUserId, projectId, isGroup } = await req.json()
+        let { targetUserId, projectId, isGroup } = await req.json()
+
+        // Normalize projectId if present
+        if (typeof projectId === 'string') {
+            projectId = projectId.trim()
+        }
 
         if (isGroup && projectId) {
+            console.log(`[chat/init] Group chat request for project: ${projectId}`)
             // Check if group chat already exists for this project
+            // Explicitly cast to uuid for robustness
             const existingGroup = await db.query(
-                `SELECT id FROM chat_conversations WHERE type = 'group' AND project_id = $1 LIMIT 1`,
+                `SELECT id FROM chat_conversations WHERE type = 'group' AND project_id = $1::uuid LIMIT 1`,
                 [projectId]
             )
+            
             if (existingGroup.rows.length > 0) {
                 const convId = existingGroup.rows[0].id
+                console.log(`[chat/init] Found existing group: ${convId}`)
                 // Ensure participation
                 const partCheck = await db.query(
-                    `SELECT 1 FROM chat_participants WHERE conversation_id = $1 AND user_id = $2`,
+                    `SELECT 1 FROM chat_participants WHERE conversation_id = $1::uuid AND user_id = $2::uuid`,
                     [convId, session.id]
                 )
                 if (partCheck.rows.length === 0) {
+                    console.log(`[chat/init] Adding user ${session.id} to group ${convId}`)
                     await db.query(
-                        `INSERT INTO chat_participants (conversation_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+                        `INSERT INTO chat_participants (conversation_id, user_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT DO NOTHING`,
                         [convId, session.id]
                     )
                 }
                 return NextResponse.json({ conversationId: convId })
             }
 
+            console.log(`[chat/init] No group found for project ${projectId}. Creating new one.`)
             // Create group
             const client = await db.connect()
             try {
                 const groupName = `${session.name || 'Cliente'} Chat`
                 await client.query('BEGIN')
                 const insertRes = await client.query(
-                    `INSERT INTO chat_conversations (type, project_id, name) VALUES ('group', $1, $2) RETURNING id`,
+                    `INSERT INTO chat_conversations (type, project_id, name) VALUES ('group', $1::uuid, $2) RETURNING id`,
                     [projectId, groupName]
                 )
                 const newId = insertRes.rows[0].id
 
                 // Add assignments
-                const assigns = await client.query(`SELECT user_id FROM project_assignments WHERE project_id = $1`, [projectId])
+                const assigns = await client.query(`SELECT user_id FROM project_assignments WHERE project_id = $1::uuid`, [projectId])
                 const usersToInclude = new Set([session.id, ...assigns.rows.map((r: any) => r.user_id)])
 
                 for (const uid of Array.from(usersToInclude)) {
-                    await client.query(`INSERT INTO chat_participants (conversation_id, user_id) VALUES ($1, $2)`, [newId, uid])
+                    await client.query(`INSERT INTO chat_participants (conversation_id, user_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT DO NOTHING`, [newId, uid])
                 }
                 await client.query('COMMIT')
+                console.log(`[chat/init] Created new group: ${newId}`)
                 return NextResponse.json({ conversationId: newId })
             } catch (err) {
                 await client.query('ROLLBACK')
