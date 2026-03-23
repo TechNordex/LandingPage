@@ -82,9 +82,15 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
         setIsOpen(false) 
     }
 
+    // Ref to store last known precise values to prevent unnecessary re-renders in RAF
+    const lastSpotRef = useRef<{top: number, left: number, width: number, height: number, pos: string} | null>(null);
+
     const updateSpotlight = () => {
         if (!isTutorial || !tutorialSteps[tutorialStep].target) {
-            setSpotlight(null)
+            if (lastSpotRef.current !== null) {
+                setSpotlight(null);
+                lastSpotRef.current = null;
+            }
             return
         }
 
@@ -92,66 +98,65 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
         if (el) {
             const rect = el.getBoundingClientRect()
             
-            // Fixed positioning means we only care about viewport-relative rect
-            setSpotlight({
-                top: rect.top,
-                left: rect.left,
-                width: rect.width,
-                height: rect.height
-            })
-
             const midX = rect.left + rect.width / 2
             const midY = rect.top + rect.height / 2
             const winW = window.innerWidth
             const winH = window.innerHeight
 
             // Determine best bubble position based on viewport quadrants
-            if (midX < winW / 3) setBubblePos('right')
-            else if (midX > (2 * winW) / 3) setBubblePos('left')
-            else if (midY > winH / 2) setBubblePos('top')
-            else setBubblePos('bottom')
+            let newPos: 'top' | 'bottom' | 'left' | 'right' = 'bottom'
+            if (midX < winW / 3) newPos = 'right'
+            else if (midX > (2 * winW) / 3) newPos = 'left'
+            else if (midY > winH / 2) newPos = 'top'
+
+            // Only update state if values changed significantly (prevent 60fps re-renders)
+            const last = lastSpotRef.current;
+            if (!last || 
+                Math.abs(last.top - rect.top) > 1 || 
+                Math.abs(last.left - rect.left) > 1 || 
+                Math.abs(last.width - rect.width) > 1 || 
+                Math.abs(last.height - rect.height) > 1 ||
+                last.pos !== newPos
+            ) {
+                lastSpotRef.current = { top: rect.top, left: rect.left, width: rect.width, height: rect.height, pos: newPos };
+                setSpotlight({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+                setBubblePos(newPos);
+            }
         } else {
-            setSpotlight(null)
+            if (lastSpotRef.current !== null) {
+                setSpotlight(null);
+                lastSpotRef.current = null;
+            }
         }
     }
 
     useEffect(() => {
-        if (isTutorial) {
-            // Initial position
-            updateSpotlight()
-            
-            setIsOpen(false)
+        if (!isTutorial) return;
 
-            // Dynamic sync during interactions
-            window.addEventListener('scroll', updateSpotlight, { passive: true })
-            window.addEventListener('resize', updateSpotlight, { passive: true })
-            
-            const targetEl = tutorialSteps[tutorialStep].target 
-                ? document.getElementById(tutorialSteps[tutorialStep].target!) 
-                : null
-                
-            // Dispatch event for external listening (e.g. to open mobile sidebar if target is inside it)
-            window.dispatchEvent(new CustomEvent('tour-step-changed', { 
-                detail: { targetId: tutorialSteps[tutorialStep].target, step: tutorialStep } 
-            }))
+        let rafId: number;
+        const loop = () => {
+            updateSpotlight();
+            rafId = requestAnimationFrame(loop);
+        };
+        loop();
 
-            if (targetEl) {
-                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                // Re-sync after scroll animation finishes
-                const timer = setTimeout(updateSpotlight, 800)
-                return () => {
-                    clearTimeout(timer)
-                    window.removeEventListener('scroll', updateSpotlight)
-                    window.removeEventListener('resize', updateSpotlight)
-                }
-            }
+        const targetEl = tutorialSteps[tutorialStep].target 
+            ? document.getElementById(tutorialSteps[tutorialStep].target!) 
+            : null;
 
-            return () => {
-                window.removeEventListener('scroll', updateSpotlight)
-                window.removeEventListener('resize', updateSpotlight)
-            }
+        // Dispatch event for external listening (e.g. to open mobile sidebar if target is inside it)
+        window.dispatchEvent(new CustomEvent('tour-step-changed', { 
+            detail: { targetId: tutorialSteps[tutorialStep].target, step: tutorialStep } 
+        }));
+
+        if (targetEl) {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-    }, [tutorialStep, isTutorial])
+
+        return () => {
+            if (rafId) cancelAnimationFrame(rafId);
+        };
+    }, [tutorialStep, isTutorial]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
