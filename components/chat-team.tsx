@@ -286,14 +286,6 @@ export default function ChatTeam({ currentUser, projectId, defaultConversationId
                     {/* Top bar */}
                     <div className="flex items-center justify-between px-4 pt-5 pb-3 border-b border-white/8">
                         <div className="flex items-center gap-2">
-                            {onClose && (
-                                <button
-                                    onClick={onClose}
-                                    className="w-7 h-7 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all"
-                                >
-                                    <X size={16} />
-                                </button>
-                            )}
                             <h2 className="text-[15px] font-bold text-white">{currentUser.name || 'Mensagens'}</h2>
                         </div>
                         <button
