@@ -578,13 +578,23 @@ export default function DashboardPage() {
                         src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png"
                         alt="Nordex" width={100} height={28} className="h-6 w-auto"
                     />
-                    {/* unread badge */}
-                    {totalUnread > 0 && (
-                        <span className="ml-auto text-[10px] font-black px-2 py-0.5 rounded-full"
-                            style={{ background: 'rgba(245,168,0,0.15)', color: '#F5A800', border: '1px solid rgba(245,168,0,0.3)' }}>
-                            {totalUnread}
-                        </span>
-                    )}
+                    
+                    {/* Mobile Chat Squad Action */}
+                    <div className="ml-auto flex items-center">
+                        <button
+                            onClick={() => handleStartChat(true)}
+                            className="relative flex items-center justify-center w-8 h-8 rounded-full transition-all active:scale-95"
+                            style={{ background: 'rgba(245,168,0,0.1)', color: '#F5A800', border: '1px solid rgba(245,168,0,0.2)' }}
+                        >
+                            {initiatingChatId === 'squad-group' ? <Loader2 size={14} className="animate-spin" /> : <MessageSquareText size={14} />}
+                            {totalUnread > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center rounded-full text-[9px] font-black border border-[#111]"
+                                    style={{ background: '#ef4444', color: '#fff' }}>
+                                    {totalUnread > 99 ? '99+' : totalUnread}
+                                </span>
+                            )}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-5 lg:p-8 custom-scrollbar">
