@@ -26,7 +26,7 @@ export function Navbar() {
   const progressBarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    let animationFrameId: number
+    let rafId: number | null = null
 
     const updateScroll = () => {
       const scrollTop = window.scrollY
@@ -38,13 +38,22 @@ export function Navbar() {
         const progress = docHeight > 0 ? scrollTop / docHeight : 0
         progressBarRef.current.style.setProperty("--scroll-progress", progress.toString())
       }
-
-      animationFrameId = requestAnimationFrame(updateScroll)
+      rafId = null
     }
 
-    animationFrameId = requestAnimationFrame(updateScroll)
+    const onScroll = () => {
+      if (rafId !== null) return
+      rafId = requestAnimationFrame(updateScroll)
+    }
 
-    return () => cancelAnimationFrame(animationFrameId)
+    // Run once on mount to set initial state
+    updateScroll()
+
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => {
+      window.removeEventListener("scroll", onScroll)
+      if (rafId !== null) cancelAnimationFrame(rafId)
+    }
   }, [])
 
   const handleScroll = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {

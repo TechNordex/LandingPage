@@ -3,7 +3,7 @@
 import React, { useRef, useEffect } from "react"
 
 interface MagneticWrapperProps {
-    children: React.ReactElement<any>
+    children: React.ReactElement<React.HTMLAttributes<HTMLElement>>
     className?: string
     strength?: number
 }
