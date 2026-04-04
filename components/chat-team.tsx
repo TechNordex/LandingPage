@@ -1,14 +1,13 @@
 "use client"
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import useSWR, { mutate } from 'swr'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-    Send, User, Loader2, ArrowLeft, MessageCircle,
-    Search, CheckCheck, X, Reply, Edit3, Trash2
-} from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import * as Popover from '@radix-ui/react-popover'
+import { Smile, Clock, MessageCircle, User, Loader2, Send, ArrowLeft, Search, CheckCheck, X, Reply, Edit3, Trash2 } from 'lucide-react'
+import EmojiPicker, { Theme, EmojiStyle } from 'emoji-picker-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Conversation = {
@@ -264,11 +263,10 @@ export default function ChatTeam({ currentUser, projectId, defaultConversationId
         mutate('/api/chat/conversations')
     }
 
-    const filtered = conversations.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    const filtered = conversations.filter(c => c.type === 'group' && c.title.toLowerCase().includes(searchQuery.toLowerCase()))
     const activeConv = conversations.find(c => c.id === activeConvId)
     const typingInConv = activeConvId ? Object.values(typingUsers[activeConvId] ?? {}) : []
 
-    const EMOJIS = ['👍', '❤️', '🔥', '👏', '✨', '🚀', '✅', '😂', '🙏', '💯']
 
     // ── Layout ──
     // On mobile, show either conversation list OR chat
@@ -407,7 +405,7 @@ export default function ChatTeam({ currentUser, projectId, defaultConversationId
                             <div className="text-center">
                                 <h3 className="text-[18px] font-bold text-white mb-2">Suas Mensagens</h3>
                                 <p className="text-[13px] text-white/40 max-w-xs leading-relaxed">
-                                    Clique em um membro da squad ou no botão MENSAGEM SQUAD para iniciar uma conversa.
+                                    Clique no botão abaixo para acessar o canal de comunicação exclusivo da sua Squad.
                                 </p>
                             </div>
                             {projectId && (
@@ -456,7 +454,7 @@ export default function ChatTeam({ currentUser, projectId, defaultConversationId
                                     <div className="min-w-0">
                                         <p className="text-[14px] font-bold text-white leading-none truncate">{activeConv?.title}</p>
                                         <p className="text-[11px] text-white/40 mt-0.5">
-                                            {activeConv?.type === 'group' ? 'Chat do Projeto — Equipe Nordex' : 'Especialista Nordex'}
+                                            Canal de Comunicação — Equipe Nordex
                                         </p>
                                     </div>
                                 </div>
@@ -661,17 +659,56 @@ export default function ChatTeam({ currentUser, projectId, defaultConversationId
                                     )}
                                 </AnimatePresence>
 
-                                {/* Emoji quick pick */}
-                                <div className="flex items-center gap-1.5 mb-2.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
-                                    {EMOJIS.map(e => (
-                                        <button
-                                            key={e}
-                                            onClick={() => { setInput(p => p + e); inputRef.current?.focus() }}
-                                            className="w-7 h-7 rounded-lg bg-white/6 hover:bg-white/12 flex items-center justify-center text-[13px] transition-all active:scale-90 shrink-0 border border-white/8"
-                                        >
-                                            {e}
-                                        </button>
-                                    ))}
+                                {/* Professional Emoji Picker Integration */}
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Popover.Root>
+                                        <Popover.Trigger asChild>
+                                            <motion.button 
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white/[0.03] border border-white/10 text-white/40 hover:text-primary hover:bg-primary/10 transition-all shadow-lg shadow-black/20"
+                                            >
+                                                <Smile size={20} />
+                                            </motion.button>
+                                        </Popover.Trigger>
+                                        <Popover.Portal>
+                                            <Popover.Content 
+                                                className="z-[9999] bg-transparent border-none shadow-none p-0 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                                                sideOffset={12}
+                                                align="start"
+                                            >
+                                                <div className="relative shadow-2xl rounded-2xl overflow-hidden border border-white/10">
+                                                    <EmojiPicker
+                                                        theme={Theme.DARK}
+                                                        emojiStyle={EmojiStyle.NATIVE}
+                                                        onEmojiClick={(emojiData) => {
+                                                            setInput(prev => prev + emojiData.emoji)
+                                                            inputRef.current?.focus()
+                                                        }}
+                                                        width={320}
+                                                        height={400}
+                                                        searchPlaceHolder="Buscar emoji..."
+                                                        previewConfig={{ showPreview: false }}
+                                                        skinTonesDisabled
+                                                        searchDisabled={false}
+                                                    />
+                                                </div>
+                                            </Popover.Content>
+                                        </Popover.Portal>
+                                    </Popover.Root>
+
+                                    {/* Quick Elegant Shortcuts */}
+                                    <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar flex-1">
+                                        {['👍', '❤️', '🔥', '👏', '✨', '🚀', '✅', '😂'].map(e => (
+                                            <button
+                                                key={e}
+                                                onClick={() => { setInput(p => p + e); inputRef.current?.focus() }}
+                                                className="px-3 py-1.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] flex items-center justify-center text-[14px] transition-all active:scale-90 shrink-0 border border-white/[0.05] hover:border-primary/20 hover:text-primary"
+                                            >
+                                                {e}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 {/* Textarea input */}
@@ -698,13 +735,15 @@ export default function ChatTeam({ currentUser, projectId, defaultConversationId
                                             className="w-full bg-white/6 border border-white/10 text-white text-[13.5px] placeholder:text-white/25 rounded-2xl px-4 py-2.5 outline-none focus:border-primary/50 focus:bg-white/8 transition-all resize-none overflow-hidden"
                                         />
                                     </div>
-                                    <button
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
                                         onClick={handleSend}
                                         disabled={!input.trim() || isSending}
-                                        className="w-10 h-10 rounded-2xl bg-primary text-black flex items-center justify-center hover:opacity-90 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-primary/20 shrink-0"
+                                        className="w-10 h-10 rounded-2xl bg-primary text-black flex items-center justify-center hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-primary/20 shrink-0"
                                     >
                                         {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={15} className="ml-0.5" />}
-                                    </button>
+                                    </motion.button>
                                 </div>
                                 <p className="text-center mt-2 text-[10px] text-white/20 hidden sm:block">
                                     Enter para enviar · Shift+Enter para nova linha

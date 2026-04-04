@@ -10,8 +10,11 @@ export async function GET() {
 
     try {
         const result = await db.query(`
-      SELECT id, email, name, role, position, avatar_url, bio, created_at
+      SELECT 
+        id, email, name, role, position, avatar_url, bio, created_at,
+        (SELECT COUNT(*)::int FROM projects WHERE client_id = portal_users.id AND deleted_at IS NULL) as project_count
       FROM portal_users
+      WHERE deleted_at IS NULL
       ORDER BY name ASC
     `)
         return NextResponse.json({ users: result.rows })
@@ -104,7 +107,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     try {
-        const { id, force } = await req.json()
+        const { id } = await req.json()
 
         if (!id) {
             return NextResponse.json({ error: 'ID do usuário é obrigatório' }, { status: 400 })
@@ -114,21 +117,9 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: 'Você não pode excluir sua própria conta.' }, { status: 403 })
         }
 
-        const projectCheck = await db.query(
-            `SELECT id, name FROM projects WHERE client_id = $1`,
-            [id]
-        )
-
-        if (projectCheck.rows.length > 0 && !force) {
-            return NextResponse.json({
-                warning: true,
-                projects: projectCheck.rows,
-                message: `Este usuário possui ${projectCheck.rows.length} projeto(s) vinculado(s). A exclusão irá remover todos os registros associados permanentemente.`
-            }, { status: 409 })
-        }
-
-        await db.query('DELETE FROM portal_users WHERE id = $1', [id])
-        return NextResponse.json({ success: true })
+        // Soft delete instead of hard delete
+        await db.query('UPDATE portal_users SET deleted_at = NOW() WHERE id = $1', [id])
+        return NextResponse.json({ success: true, message: 'Usuário movido para a lixeira.' })
     } catch (error: any) {
         console.error('[admin/users DELETE]', error)
         return NextResponse.json({ error: 'Erro ao excluir usuário' }, { status: 500 })

@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bot, X, Send, User, Loader2, Sparkles, ChevronRight, HelpCircle } from 'lucide-react'
+import { Bot, X, Send, Loader2, Sparkles, ChevronRight, HelpCircle } from 'lucide-react'
 import type { Project } from '@/lib/types'
 
 interface Message {
@@ -25,7 +25,10 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
     const [tutorialStep, setTutorialStep] = useState(0)
     const [spotlight, setSpotlight] = useState<{ top: number, left: number, width: number, height: number } | null>(null)
     const [bubblePos, setBubblePos] = useState<'top' | 'bottom' | 'left' | 'right'>('bottom')
+    const [isMobile, setIsMobile] = useState(false)
+    const [bubbleStyle, setBubbleStyle] = useState<React.CSSProperties>({})
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const lastSpotRef = useRef<{top: number, left: number, width: number, height: number, pos: string} | null>(null)
 
     const tutorialSteps: Step[] = [
         {
@@ -65,6 +68,14 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
         }
     ]
 
+    // Detect mobile safely on client side only
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 640)
+        checkMobile()
+        window.addEventListener('resize', checkMobile)
+        return () => window.removeEventListener('resize', checkMobile)
+    }, [])
+
     useEffect(() => {
         // Automatic Trigger: Only if NOT completed in DB, project exists, and tour logic is enabled
         if (tourCompleted === false && project && tourEnabled) {
@@ -78,18 +89,53 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
     const startTutorial = () => {
         setIsTutorial(true)
         setTutorialStep(0)
-        // Ensure Nordy icon is visible but chat isn't taking over
-        setIsOpen(false) 
+        setIsOpen(false)
     }
 
-    // Ref to store last known precise values to prevent unnecessary re-renders in RAF
-    const lastSpotRef = useRef<{top: number, left: number, width: number, height: number, pos: string} | null>(null);
+    const computeBubbleStyle = useCallback((
+        spot: { top: number, left: number, width: number, height: number } | null,
+        pos: string,
+        mobile: boolean
+    ): React.CSSProperties => {
+        if (!spot) {
+            return { top: '50%', left: '50%', transform: 'translate(-50%, -100px)' }
+        }
+        if (mobile) {
+            if (pos === 'top') {
+                return { top: 20, left: '50%', transform: 'translateX(-50%)' }
+            }
+            return { bottom: 24, left: '50%', transform: 'translateX(-50%)' }
+        }
+        const winW = window.innerWidth
+        const winH = window.innerHeight
+        let top: number
+        let left: number
 
-    const updateSpotlight = () => {
+        if (pos === 'top') {
+            top = Math.max(20, spot.top - 280)
+        } else if (pos === 'bottom') {
+            top = Math.min(winH - 280, spot.top + spot.height + 40)
+        } else {
+            top = Math.max(20, Math.min(winH - 280, spot.top + spot.height / 2 - 130))
+        }
+
+        if (pos === 'left') {
+            left = Math.max(20, spot.left - 380)
+        } else if (pos === 'right') {
+            left = Math.min(winW - 370, spot.left + spot.width + 40)
+        } else {
+            left = Math.max(20, Math.min(winW - 370, spot.left + spot.width / 2 - 175))
+        }
+
+        return { top, left }
+    }, [])
+
+    const updateSpotlight = useCallback(() => {
         if (!isTutorial || !tutorialSteps[tutorialStep].target) {
             if (lastSpotRef.current !== null) {
-                setSpotlight(null);
-                lastSpotRef.current = null;
+                setSpotlight(null)
+                setBubbleStyle(computeBubbleStyle(null, 'bottom', isMobile))
+                lastSpotRef.current = null
             }
             return
         }
@@ -97,66 +143,65 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
         const el = document.getElementById(tutorialSteps[tutorialStep].target!)
         if (el) {
             const rect = el.getBoundingClientRect()
-            
             const midX = rect.left + rect.width / 2
             const midY = rect.top + rect.height / 2
             const winW = window.innerWidth
             const winH = window.innerHeight
 
-            // Determine best bubble position based on viewport quadrants
             let newPos: 'top' | 'bottom' | 'left' | 'right' = 'bottom'
             if (midX < winW / 3) newPos = 'right'
             else if (midX > (2 * winW) / 3) newPos = 'left'
             else if (midY > winH / 2) newPos = 'top'
 
-            // Only update state if values changed significantly (prevent 60fps re-renders)
-            const last = lastSpotRef.current;
-            if (!last || 
-                Math.abs(last.top - rect.top) > 1 || 
-                Math.abs(last.left - rect.left) > 1 || 
-                Math.abs(last.width - rect.width) > 1 || 
+            const last = lastSpotRef.current
+            if (!last ||
+                Math.abs(last.top - rect.top) > 1 ||
+                Math.abs(last.left - rect.left) > 1 ||
+                Math.abs(last.width - rect.width) > 1 ||
                 Math.abs(last.height - rect.height) > 1 ||
                 last.pos !== newPos
             ) {
-                lastSpotRef.current = { top: rect.top, left: rect.left, width: rect.width, height: rect.height, pos: newPos };
-                setSpotlight({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
-                setBubblePos(newPos);
+                lastSpotRef.current = { top: rect.top, left: rect.left, width: rect.width, height: rect.height, pos: newPos }
+                const newSpot = { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
+                setSpotlight(newSpot)
+                setBubblePos(newPos)
+                setBubbleStyle(computeBubbleStyle(newSpot, newPos, isMobile))
             }
         } else {
             if (lastSpotRef.current !== null) {
-                setSpotlight(null);
-                lastSpotRef.current = null;
+                setSpotlight(null)
+                setBubbleStyle(computeBubbleStyle(null, 'bottom', isMobile))
+                lastSpotRef.current = null
             }
         }
-    }
+    }, [isTutorial, tutorialStep, isMobile, computeBubbleStyle, tutorialSteps])
 
     useEffect(() => {
-        if (!isTutorial) return;
+        if (!isTutorial) return
 
-        let rafId: number;
+        let rafId: number
         const loop = () => {
-            updateSpotlight();
-            rafId = requestAnimationFrame(loop);
-        };
-        loop();
+            updateSpotlight()
+            rafId = requestAnimationFrame(loop)
+        }
+        loop()
 
-        const targetEl = tutorialSteps[tutorialStep].target 
-            ? document.getElementById(tutorialSteps[tutorialStep].target!) 
-            : null;
+        const targetEl = tutorialSteps[tutorialStep].target
+            ? document.getElementById(tutorialSteps[tutorialStep].target!)
+            : null
 
-        // Dispatch event for external listening (e.g. to open mobile sidebar if target is inside it)
-        window.dispatchEvent(new CustomEvent('tour-step-changed', { 
-            detail: { targetId: tutorialSteps[tutorialStep].target, step: tutorialStep } 
-        }));
+        window.dispatchEvent(new CustomEvent('tour-step-changed', {
+            detail: { targetId: tutorialSteps[tutorialStep].target, step: tutorialStep }
+        }))
 
         if (targetEl) {
-            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
         }
 
         return () => {
-            if (rafId) cancelAnimationFrame(rafId);
-        };
-    }, [tutorialStep, isTutorial]);
+            if (rafId) cancelAnimationFrame(rafId)
+        }
+    }, [tutorialStep, isTutorial, updateSpotlight])
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -164,7 +209,7 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
 
     const handleSend = async (text: string = input) => {
         if (!text.trim() || isLoading) return
-        
+
         const newMessages: Message[] = [...messages, { role: 'user', content: text }]
         setMessages(newMessages)
         setInput('')
@@ -174,7 +219,7 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
             const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     messages: newMessages,
                     context: `O usuário está no Portal do Cliente da Nordex Tech. O projeto atual é "${project?.name}". Descrição: ${project?.description}.`
                 }),
@@ -194,15 +239,14 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
         } else {
             setIsTutorial(false)
             setSpotlight(null)
-            
-            // Persist completion in DB
+
             try {
                 await fetch('/api/dashboard/tour-status', { method: 'POST' })
             } catch (err) {
                 console.error('Failed to save tour status', err)
             }
 
-            setIsOpen(true) // Open chat at the end to say goodbye
+            setIsOpen(true)
             setMessages([{ role: 'assistant', content: "Ótimo! Agora você já sabe como tudo funciona por aqui. Explore seu novo painel e me chame se precisar!" }])
         }
     }
@@ -214,14 +258,14 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                 {isTutorial && (
                     <div className="fixed inset-0 z-[200] pointer-events-none">
                         {/* Semi-transparent Overlay */}
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-black/10 pointer-events-auto cursor-pointer" 
+                            className="absolute inset-0 bg-black/10 pointer-events-auto cursor-pointer"
                             onClick={nextTutorialStep}
                         />
-                        
+
                         {/* The Spotlight Highlighting the Element */}
                         {spotlight && (
                             <motion.div
@@ -234,10 +278,10 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                                 className="fixed bg-transparent border-2 border-primary shadow-[0_0_0_9999px_rgba(0,0,0,0.3)] rounded-2xl z-[201] pointer-events-none"
                             >
-                                <motion.div 
+                                <motion.div
                                     animate={{ opacity: [0.3, 0.6, 0.3] }}
                                     transition={{ repeat: Infinity, duration: 1.5 }}
-                                    className="absolute -inset-2 border border-primary/50 rounded-[20px]" 
+                                    className="absolute -inset-2 border border-primary/50 rounded-[20px]"
                                 />
                             </motion.div>
                         )}
@@ -246,40 +290,19 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                         <motion.div
                             key={tutorialStep}
                             initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                            animate={{ 
-                                opacity: 1, 
-                                scale: 1, 
-                                y: 0,
-                                top: spotlight 
-                                    ? (window.innerWidth < 640 
-                                        ? (bubblePos === 'top' ? 20 : 'auto') 
-                                        : Math.max(20, Math.min(window.innerHeight - (bubblePos === 'top' ? 320 : 280), 
-                                            bubblePos === 'top' ? spotlight.top - 280 : (bubblePos === 'bottom' ? spotlight.top + spotlight.height + 40 : spotlight.top + (spotlight.height / 2) - 130)
-                                          )))
-                                    : '50%',
-                                bottom: spotlight && window.innerWidth < 640
-                                    ? (bubblePos === 'top' ? 'auto' : 24)
-                                    : 'auto',
-                                left: spotlight 
-                                    ? (window.innerWidth < 640 
-                                        ? '50%' 
-                                        : Math.max(20, Math.min(window.innerWidth - 370, 
-                                            bubblePos === 'left' ? spotlight.left - 380 : (bubblePos === 'right' ? spotlight.left + spotlight.width + 40 : spotlight.left + (spotlight.width / 2) - 175)
-                                          )))
-                                    : '50%',
-                                x: spotlight ? (window.innerWidth < 640 ? '-50%' : 0) : '-50%',
-                                marginTop: spotlight ? 0 : '-100px'
-                            }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            style={bubbleStyle}
                             className="fixed z-[210] w-[calc(100vw-32px)] sm:w-[350px] pointer-events-auto"
                         >
                             <div className="relative p-5 sm:p-6 bg-card/85 backdrop-blur-2xl border border-primary/20 rounded-[24px] sm:rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden group">
                                 {/* Professional Glass Effects */}
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10" />
                                 <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-primary/5 rounded-full blur-3xl" />
-                                
+
                                 <div className="flex gap-4 items-start relative z-10">
                                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
-                                        <Bot size={window.innerWidth < 640 ? 20 : 24} className="text-primary-foreground" />
+                                        <Bot size={isMobile ? 20 : 24} className="text-primary-foreground" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <h4 className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-primary mb-1.5 sm:mb-2 italic">
@@ -297,7 +320,7 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                                             <div key={i} className={`h-1 rounded-full transition-all duration-300 ${i === tutorialStep ? 'w-6 sm:w-8 bg-primary shadow-[0_0_8px_rgba(245,168,0,0.4)]' : 'w-1.5 sm:w-2 bg-primary/10'}`} />
                                         ))}
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={nextTutorialStep}
                                         className="h-9 sm:h-11 px-4 sm:px-6 bg-primary text-primary-foreground text-[12px] sm:text-[13px] font-bold rounded-full flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/10"
                                     >
@@ -306,9 +329,9 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                                     </button>
                                 </div>
                             </div>
-                            
+
                             {/* Professional Bubble Arrow - Hidden on Mobile */}
-                            {spotlight && window.innerWidth >= 640 && (
+                            {spotlight && !isMobile && (
                                 <div className={`absolute w-5 h-5 bg-card/85 border-primary/20 border transform rotate-45 z-[-1] ${
                                     bubblePos === 'top' ? 'bottom-[-10px] left-1/2 -translate-x-1/2 border-t-0 border-l-0' :
                                     bubblePos === 'bottom' ? 'top-[-10px] left-1/2 -translate-x-1/2 border-b-0 border-r-0' :
@@ -320,8 +343,9 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                     </div>
                 )}
             </AnimatePresence>
+
             {/* Nordy Floating Trigger */}
-            <motion.div 
+            <motion.div
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 whileHover={{ scale: 1.1 }}
@@ -333,24 +357,22 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                     className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary text-primary-foreground shadow-[0_0_30px_rgba(245,168,0,0.4)] flex items-center justify-center group overflow-hidden"
                 >
                     <motion.div
-                        animate={{ 
+                        animate={{
                             y: [0, -4, 0],
                             rotate: [0, -5, 5, 0]
                         }}
-                        transition={{ 
-                            duration: 4, 
+                        transition={{
+                            duration: 4,
                             repeat: Infinity,
                             ease: "easeInOut"
                         }}
                     >
                         {isOpen ? <X size={24} className="sm:size-[28px]" /> : <Bot size={24} className="sm:size-[28px]" />}
                     </motion.div>
-                    
+
                     {/* Decorative Ring */}
                     <div className="absolute inset-0 border-2 border-primary-foreground/20 rounded-full animate-ping opacity-20" />
                 </button>
-                
-
             </motion.div>
 
             {/* Chat Window */}
@@ -367,8 +389,8 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center relative">
                                     <Bot size={20} />
-                                    <motion.div 
-                                        animate={{ scale: [1, 1.2, 1] }} 
+                                    <motion.div
+                                        animate={{ scale: [1, 1.2, 1] }}
                                         transition={{ repeat: Infinity, duration: 2 }}
                                         className="absolute -top-1 -right-1"
                                     >
@@ -381,8 +403,8 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
-                                <button 
-                                    onClick={startTutorial} 
+                                <button
+                                    onClick={startTutorial}
                                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-[11px] font-bold transition-all mr-2"
                                     title="Reiniciar Tour"
                                 >
@@ -405,8 +427,8 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                                     className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                 >
                                     <div className={`max-w-[85%] p-3 rounded-2xl text-[13.5px] leading-relaxed shadow-sm ${
-                                        msg.role === 'user' 
-                                        ? 'bg-primary text-primary-foreground rounded-tr-none' 
+                                        msg.role === 'user'
+                                        ? 'bg-primary text-primary-foreground rounded-tr-none'
                                         : 'bg-secondary border border-border/50 text-foreground rounded-tl-none'
                                     }`}>
                                         {msg.content}
@@ -423,7 +445,7 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                             )}
                             {!isTutorial && messages.length === 1 && (
                                 <div className="px-4 pb-4">
-                                    <button 
+                                    <button
                                         onClick={startTutorial}
                                         className="w-full py-3 bg-primary/10 border border-primary/20 rounded-xl text-primary text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/20 transition-all"
                                     >
@@ -443,7 +465,7 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                                         <div key={i} className={`w-1.5 h-1.5 rounded-full transition-all ${i === tutorialStep ? 'bg-primary w-4' : 'bg-primary/20'}`} />
                                     ))}
                                 </div>
-                                <button 
+                                <button
                                     onClick={nextTutorialStep}
                                     className="px-3 py-1.5 bg-primary text-primary-foreground text-[12px] font-bold rounded-lg flex items-center gap-1 hover:opacity-90 transition-opacity"
                                 >
@@ -457,14 +479,14 @@ export default function NordyAssistant({ project, tourCompleted, tourEnabled = t
                         {!isTutorial && (
                             <div className="p-4 bg-card border-t border-border">
                                 <div className="relative">
-                                    <input 
+                                    <input
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                                         placeholder="Tire uma dúvida sobre seu projeto..."
-                                        className="w-full bg-background border border-border rounded-xl px-4 py-3 pr-12 text-[13px] outline-none focus:border-primary transition-colors pr-10"
+                                        className="w-full bg-background border border-border rounded-xl px-4 py-3 pr-12 text-[13px] outline-none focus:border-primary transition-colors"
                                     />
-                                    <button 
+                                    <button
                                         onClick={() => handleSend()}
                                         disabled={isLoading || !input.trim()}
                                         className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-primary text-primary-foreground rounded-lg flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-40"

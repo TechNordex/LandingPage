@@ -358,3 +358,185 @@
     scroll-behavior: auto;
   }
 }
+
+/* ============================================================
+   NORDEX PREMIUM DASHBOARD — Extra Keyframes & Utilities
+   ============================================================ */
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes goldGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(245,168,0,0.15), 0 0 20px rgba(245,168,0,0.05); }
+  50% { box-shadow: 0 0 16px rgba(245,168,0,0.35), 0 0 40px rgba(245,168,0,0.12); }
+}
+
+@keyframes goldPulseRing {
+  0% { box-shadow: 0 0 0 0 rgba(245,168,0,0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(245,168,0,0); }
+  100% { box-shadow: 0 0 0 0 rgba(245,168,0,0); }
+}
+
+@keyframes borderSlideIn {
+  from { transform: scaleY(0); opacity: 0; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes floatUp {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes scanLine {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+/* ── Glass card ─────────────────────────────────────────── */
+.glass-card {
+  background: rgba(15, 15, 15, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(245, 168, 0, 0.08);
+}
+
+/* ── Gold glow box-shadow ───────────────────────────────── */
+.gold-glow {
+  box-shadow:
+    0 0 0 1px rgba(245, 168, 0, 0.12),
+    0 0 24px rgba(245, 168, 0, 0.08),
+    0 4px 32px rgba(0, 0, 0, 0.4);
+}
+
+.gold-glow-active {
+  animation: goldGlow 3s ease-in-out infinite;
+}
+
+/* ── Gold gradient text ─────────────────────────────────── */
+.gold-gradient-text {
+  background: linear-gradient(135deg, #F5A800 0%, #ffce00 50%, #F5A800 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── Premium sidebar ────────────────────────────────────── */
+.sidebar-premium {
+  background: #080808;
+  border-right: 1px solid #181818;
+  box-shadow: inset -1px 0 0 rgba(245, 168, 0, 0.04), 4px 0 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Metric card ────────────────────────────────────────── */
+.metric-card {
+  background: #0d0d0d;
+  border: 1px solid #1a1a1a;
+  border-radius: 16px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(245,168,0,0.3), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.metric-card:hover {
+  border-color: rgba(245, 168, 0, 0.2);
+  box-shadow: 0 0 20px rgba(245, 168, 0, 0.06), 0 8px 32px rgba(0,0,0,0.3);
+  transform: translateY(-2px);
+}
+
+.metric-card:hover::before {
+  opacity: 1;
+}
+
+/* ── Premium feed card ──────────────────────────────────── */
+.feed-card {
+  background: #0d0d0d;
+  border: 1px solid #1c1c1c;
+  border-radius: 16px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.feed-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+  background: linear-gradient(180deg, #F5A800, rgba(245,168,0,0.2));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.feed-card:hover {
+  border-color: rgba(245, 168, 0, 0.15);
+  box-shadow: 0 0 16px rgba(245, 168, 0, 0.04), 0 4px 24px rgba(0,0,0,0.3);
+}
+
+.feed-card:hover::after {
+  opacity: 1;
+}
+
+/* ── Gold shimmer (loading/empty state) ─────────────────── */
+.shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    rgba(245,168,0,0) 0%,
+    rgba(245,168,0,0.04) 50%,
+    rgba(245,168,0,0) 100%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+
+/* ── Active sidebar item ────────────────────────────────── */
+.sidebar-item-active {
+  background: rgba(245, 168, 0, 0.08);
+  border-left: 3px solid #F5A800;
+  box-shadow: inset 0 0 16px rgba(245, 168, 0, 0.04);
+}
+
+/* ── Gold ring pulse for timeline dots ──────────────────── */
+.timeline-dot-active {
+  animation: goldPulseRing 2s ease-out infinite;
+}
+
+/* ── animate-fade-in ────────────────────────────────────── */
+.animate-fade-in {
+  animation: fadeIn 0.5s var(--anim-ease) both;
+}
+
+/* ── animate-pulse-slow ─────────────────────────────────── */
+.animate-pulse-slow {
+  animation: goldGlow 2s ease-in-out infinite;
+}
+
+/* ── Content card ───────────────────────────────────────── */
+.content-card {
+  background: #0e0e0e;
+  border: 1px solid #1c1c1c;
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.content-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(245,168,0,0.2) 50%, transparent 100%);
+}

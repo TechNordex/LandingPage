@@ -55,38 +55,54 @@ function useTypewriter(target: string, { speed = 70, startDelay = 300 } = {}) {
     return { text, isDone }
 }
 
-const formatHours = (hours: number | undefined) => {
-    if (!hours || isNaN(hours) || hours === 0) return null;
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
+const formatHours = (totalMinutes: number | undefined) => {
+    if (!totalMinutes || isNaN(totalMinutes) || totalMinutes === 0) return null;
+    const h = Math.floor(totalMinutes / 60);
+    const m = Math.round(totalMinutes % 60);
     if (h > 0 && m > 0) return `${h}h ${m}m`;
     if (h > 0) return `${h}h`;
     return `${m}m`;
 }
 
 function TypewriterTitle({ text, description }: { text: string; description?: string | null }) {
-    const { text: typed, isDone } = useTypewriter(text, { speed: 80, startDelay: 300 })
+    const { text: typed, isDone } = useTypewriter(text, { speed: 60, startDelay: 200 })
     return (
-        <div className="mb-8 flex flex-col items-center justify-center text-center animate-fade-in w-full">
-            <h1 id="tour-welcome" className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-3" style={{ fontFamily: "var(--font-space-grotesk)" }}>
-                <span className="text-primary whitespace-nowrap">
+        <div className="mb-10 flex flex-col items-center justify-center text-center animate-fade-in w-full">
+            {/* Eyebrow label */}
+            <div className="flex items-center gap-2 mb-4">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/70">Portal do Cliente</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            </div>
+            <h1 id="tour-welcome"
+                className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight mb-2"
+                style={{ fontFamily: "var(--font-space-grotesk)", lineHeight: 1.08 }}
+            >
+                <span className="gold-gradient-text whitespace-pre-wrap">
                     {typed}
                     <span
                         aria-hidden="true"
-                        className="inline-block w-[3px] h-[0.85em] bg-primary align-middle ml-[2px] rounded-sm"
+                        className="inline-block w-[4px] h-[0.8em] bg-primary align-middle ml-[3px] rounded-[2px]"
                         style={{
                             animationName: isDone ? "none" : "cursorBlink",
-                            animationDuration: "0.8s",
+                            animationDuration: "0.75s",
                             animationTimingFunction: "step-end",
                             animationIterationCount: "infinite",
                             opacity: isDone ? 0 : 1,
-                            transition: "opacity 0.5s ease",
+                            transition: "opacity 0.6s ease",
+                            boxShadow: "0 0 12px rgba(245,168,0,0.6)"
                         }}
                     />
                 </span>
             </h1>
+            {/* Gold accent line */}
+            <div className="flex items-center gap-3 my-4">
+                <div className="h-px w-12 bg-gradient-to-r from-transparent to-primary/40" />
+                <div className="h-[2px] w-24 rounded-full" style={{ background: "linear-gradient(90deg, #F5A800, #ffce00, #F5A800)" }} />
+                <div className="h-px w-12 bg-gradient-to-l from-transparent to-primary/40" />
+            </div>
             {description && (
-                <p className="text-[15px] sm:text-[16px] text-muted-foreground max-w-2xl text-balance">
+                <p className="text-[14px] sm:text-[15px] text-muted-foreground/80 max-w-xl leading-relaxed tracking-wide">
                     {description}
                 </p>
             )}
@@ -154,21 +170,20 @@ export default function DashboardPage() {
         }
     }, [jsonData, activeProjectId])
 
-    const handleStartChat = async (member: any) => {
+    const handleStartChat = async (isGroup: boolean = true) => {
         if (!activeProjectId) return
         try {
-            setInitiatingChatId(member.id)
+            setInitiatingChatId(isGroup ? 'squad-group' : 'individual')
             setHoverSquadRect(null)
             const res = await fetch('/api/chat/init', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ targetUserId: member.id, projectId: activeProjectId })
+                body: JSON.stringify({ isGroup: true, projectId: activeProjectId })
             })
             const data = await res.json()
             if (data.conversationId) {
                 setChatConvId(data.conversationId)
                 setShowChatPopup(true)
-                // Close sidebar on mobile
                 setSidebarOpen(false)
             }
         } catch (error) {
@@ -373,32 +388,37 @@ export default function DashboardPage() {
 
             {/* ---------- SIDEBAR ---------- */}
             {sidebarOpen && (
-                <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} />
+                <div className="fixed inset-0 z-30 bg-black/70 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />
             )}
-            <aside className={`fixed lg:static top-0 left-0 h-full lg:h-auto z-40 w-64 flex-shrink-0 bg-card border-r border-border flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+            <aside className={`fixed lg:static top-0 left-0 h-full lg:h-auto z-40 w-64 flex-shrink-0 sidebar-premium flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
                 }`}>
                 {/* Logo */}
-                <div className="px-6 py-5 border-b border-border flex items-center gap-3">
+                <div className="px-5 py-5 border-b border-[#1a1a1a] flex items-center gap-3 relative overflow-hidden">
+                    {/* Subtle gold accent line top */}
+                    <div className="absolute top-0 left-0 right-0 h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(245,168,0,0.4), transparent)' }} />
                     <Image
                         src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png"
-                        alt="Nordex" width={130} height={36} className="h-10 w-auto opacity-100" priority
+                        alt="Nordex" width={130} height={36} className="h-9 w-auto" priority
                     />
-                    <span className="bg-primary/10 text-primary text-[10px] sm:text-[11px] font-black px-2 py-1 border border-primary/20 uppercase tracking-widest rounded-md whitespace-nowrap">Portal do Cliente</span>
+                    <span className="text-[9px] font-black px-2 py-1 uppercase tracking-[0.18em] rounded-md whitespace-nowrap border"
+                        style={{ background: 'rgba(245,168,0,0.07)', color: '#F5A800', borderColor: 'rgba(245,168,0,0.2)' }}>
+                        Portal
+                    </span>
                 </div>
 
                 {/* Project Nav */}
-                <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/50 px-3 mb-3">Meus Projetos</p>
+                <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-1 custom-scrollbar">
+                    <p className="text-[9px] font-black uppercase tracking-[0.22em] px-3 mb-3" style={{ color: 'rgba(245,168,0,0.4)' }}>Meus Projetos</p>
                     {projects && projects.length > 0 ? projects.map((p: any) => (
                         <button
                             key={p.id}
                             onClick={() => { setActiveProjectId(p.id); setSidebarOpen(false) }}
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 text-left ${activeProjectId === p.id
-                                ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(245,168,0,0.25)]'
-                                : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 text-left relative group ${activeProjectId === p.id
+                                ? 'sidebar-item-active text-[#F5A800]'
+                                : 'text-[#555] hover:text-[#aaa] hover:bg-white/[0.03]'
                                 }`}
                         >
-                            <div className={`w-2 h-2 rounded-full shrink-0 ${activeProjectId === p.id ? 'bg-primary-foreground animate-pulse' : 'bg-muted-foreground/30'}`} />
+                            <div className={`w-2 h-2 rounded-full shrink-0 transition-all ${activeProjectId === p.id ? 'bg-primary shadow-[0_0_8px_rgba(245,168,0,0.8)] animate-pulse' : 'bg-[#333]'}`} />
                             <span className="truncate">{p.name}</span>
                             {p.preview_status === 'pending' && (
                                 <span className="ml-auto w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" title="Aguardando aprovação" />
@@ -408,53 +428,56 @@ export default function DashboardPage() {
                             )}
                         </button>
                     )) : (
-                        <p className="text-[12px] text-muted-foreground px-3 py-2">Nenhum projeto ativo.</p>
+                        <p className="text-[12px] text-[#444] px-3 py-2">Nenhum projeto ativo.</p>
                     )}
 
                     {/* Project Specific Info (Contextual) */}
                     {project && (
-                        <div className="mt-8 px-3 space-y-6">
+                        <div className="mt-8 px-1 space-y-5">
                             {/* Environment Links */}
                             <div id="tour-env-links" className="space-y-2">
+                                <p className="text-[9px] font-black uppercase tracking-[0.22em] px-2 mb-2" style={{ color: 'rgba(245,168,0,0.4)' }}>Ambientes</p>
                                 <a
                                     href={project.stage_url || '#'}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className={`w-full py-2.5 px-3 rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-widest flex items-center gap-2 transition-all duration-300 group ${project.stage_url
-                                        ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20'
-                                        : 'bg-secondary/40 text-muted-foreground cursor-not-allowed opacity-40 grayscale'
+                                    className={`w-full py-2.5 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all duration-300 ${project.stage_url
+                                        ? 'text-amber-400 hover:bg-amber-500/10'
+                                        : 'text-[#333] cursor-not-allowed opacity-40'
                                         }`}
+                                    style={{ border: '1px solid', borderColor: project.stage_url ? 'rgba(245,168,0,0.15)' : '#222' }}
                                     onClick={(e) => !project.stage_url && e.preventDefault()}
                                 >
-                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${project.stage_url ? 'bg-amber-500 animate-pulse' : 'bg-muted-foreground'}`} />
-                                    <span className="truncate">Ambiente Stage</span>
-                                    {project.stage_url && <ExternalLink size={12} className="ml-auto" />}
+                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${project.stage_url ? 'bg-amber-400 animate-pulse' : 'bg-[#333]'}`} />
+                                    <span className="truncate">Stage</span>
+                                    {project.stage_url && <ExternalLink size={11} className="ml-auto opacity-60" />}
                                 </a>
 
                                 <a
                                     href={project.prod_url || '#'}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className={`w-full py-2.5 px-3 rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-widest flex items-center gap-2 transition-all duration-300 group ${project.prod_url
-                                        ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                                        : 'bg-secondary/40 text-muted-foreground cursor-not-allowed opacity-40 grayscale'
+                                    className={`w-full py-2.5 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all duration-300 ${project.prod_url
+                                        ? 'text-primary hover:bg-primary/10'
+                                        : 'text-[#333] cursor-not-allowed opacity-40'
                                         }`}
+                                    style={{ border: '1px solid', borderColor: project.prod_url ? 'rgba(245,168,0,0.25)' : '#222' }}
                                     onClick={(e) => !project.prod_url && e.preventDefault()}
                                 >
-                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${project.prod_url ? 'bg-primary animate-pulse' : 'bg-muted-foreground'}`} />
-                                    <span className="truncate">Ambiente Prod</span>
-                                    {project.prod_url && <ExternalLink size={12} className="ml-auto" />}
+                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${project.prod_url ? 'bg-primary animate-pulse shadow-[0_0_6px_rgba(245,168,0,0.8)]' : 'bg-[#333]'}`} />
+                                    <span className="truncate">Produção</span>
+                                    {project.prod_url && <ExternalLink size={11} className="ml-auto opacity-60" />}
                                 </a>
                             </div>
 
                             {/* Squad Info */}
                             {project.squad && project.squad.length > 0 && (
                                 <div id="tour-squad" className="space-y-3 pb-4">
-                                    <div className="flex flex-wrap items-center justify-between gap-3">
-                                        <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] text-primary flex items-center gap-1.5 shrink-0">
-                                            <Users size={12} className="shrink-0" /> Squad Especialista
+                                    <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-1.5 shrink-0" style={{ color: '#F5A800' }}>
+                                            <Users size={11} className="shrink-0" /> Squad
                                         </span>
-                                        <button 
+                                        <button
                                             id="btn-mensagem-squad"
                                             onClick={async () => {
                                                 if (initiatingChatId === 'squad-group') return
@@ -470,51 +493,43 @@ export default function DashboardPage() {
                                                         setChatConvId(data.conversationId)
                                                         setShowChatPopup(true)
                                                     }
-                                                } catch (err) {} finally { setInitiatingChatId(null) }
+                                                } catch (err) { } finally { setInitiatingChatId(null) }
                                             }}
-                                            className="text-[9px] sm:text-[10px] font-bold text-primary hover:text-primary-foreground bg-primary/10 hover:bg-primary border border-primary/20 hover:border-primary px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 uppercase whitespace-nowrap shrink-0"
+                                            className="text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-200"
+                                            style={{
+                                                background: initiatingChatId === 'squad-group' ? 'rgba(245,168,0,0.1)' : '#F5A800',
+                                                color: initiatingChatId === 'squad-group' ? '#F5A800' : '#000',
+                                                border: '1px solid rgba(245,168,0,0.3)',
+                                                boxShadow: '0 0 12px rgba(245,168,0,0.2)'
+                                            }}
                                         >
-                                            {initiatingChatId === 'squad-group' ? <Loader2 size={12} className="animate-spin" /> : <MessageSquareText size={12} />}
-                                            MENSAGEM SQUAD
+                                            {initiatingChatId === 'squad-group' ? <Loader2 size={10} className="animate-spin" /> : <MessageSquareText size={10} />}
+                                            Mensagem
                                         </button>
                                     </div>
-                                    <div className="flex flex-col gap-2">
-                                    {project.squad.map((member: any, i: number) => (
-                                        <div 
-                                            key={i}
-                                            className="group/member relative"
-                                            onMouseEnter={(e) => {
-                                                const rect = e.currentTarget.getBoundingClientRect()
-                                                setHoverSquadRect({
-                                                    top: rect.top,
-                                                    left: rect.right,
-                                                    member
-                                                })
-                                            }}
-                                            onMouseLeave={() => setHoverSquadRect(null)}
-                                            onClick={() => handleStartChat(member)}
-                                        >
-                                                <div className="flex items-center gap-3 bg-secondary/20 border border-border/50 rounded-xl p-2 hover:bg-secondary/40 transition-all cursor-pointer group shadow-sm">
-                                                    <div className="w-8 h-8 rounded-full bg-background border border-border overflow-hidden shrink-0 aspect-square relative z-10 text-xs">
-                                                        {member.avatar_url ? (
-                                                            <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-primary font-bold">{member.name.charAt(0)}</div>
-                                                        )}
-                                                    </div>
-                                                    <div className="min-w-0 flex-1 relative z-10 flex items-center justify-between">
-                                                        <div>
-                                                            <p className="text-[12px] font-bold text-foreground leading-none truncate">{member.name.split(' ')[0]}</p>
-                                                            <p className="text-[9px] text-muted-foreground mt-1 font-medium truncate uppercase tracking-tighter">{member.position || 'Especialista'}</p>
-                                                        </div>
-                                                        <div className="w-6 h-6 rounded-full bg-background/50 border border-border flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            {initiatingChatId === member.id ? <Loader2 size={10} className="animate-spin text-primary" /> : <MessageCircle size={12} className="text-primary" />}
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                    <div className="flex items-center px-1 -space-x-2.5 overflow-hidden">
+                                        {project.squad.map((member: any, i: number) => (
+                                            <div
+                                                key={i}
+                                                className="inline-block h-9 w-9 rounded-full bg-[#1a1a1a] overflow-hidden cursor-help transition-all duration-200 hover:scale-110 hover:z-20 relative"
+                                                style={{ border: '2px solid #0a0a0a', boxShadow: '0 0 0 1px rgba(245,168,0,0.15)' }}
+                                                title={`${member.name} — ${member.position || 'Especialista'}`}
+                                            >
+                                                {member.avatar_url ? (
+                                                    <img src={member.avatar_url} alt={member.name} className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <div className="h-full w-full flex items-center justify-center text-[10px] font-black text-primary">{member.name.charAt(0)}</div>
+                                                )}
                                             </div>
                                         ))}
+                                        <div className="flex items-center justify-center h-9 w-9 rounded-full overflow-hidden text-[9px] font-black"
+                                            style={{ background: 'rgba(245,168,0,0.1)', color: '#F5A800', border: '2px solid #0a0a0a', boxShadow: '0 0 0 1px rgba(245,168,0,0.2)' }}>
+                                            +{project.squad.length}
+                                        </div>
                                     </div>
+                                    <p className="px-1 text-[11px] leading-relaxed" style={{ color: '#444' }}>
+                                        Seu Squad dedicado trabalhando em tempo real.
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -522,53 +537,65 @@ export default function DashboardPage() {
                 </nav>
 
                 {/* User + Logout */}
-                <div className="border-t border-border p-4 space-y-3">
+                <div className="border-t border-[#181818] p-4 space-y-3">
                     {user && (
                         <div className="flex items-center gap-3 px-1">
-                            <div className="w-9 h-9 rounded-full bg-secondary border border-border overflow-hidden shrink-0 aspect-square">
+                            <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 aspect-square"
+                                style={{ border: '2px solid rgba(245,168,0,0.3)', boxShadow: '0 0 8px rgba(245,168,0,0.15)' }}>
                                 {(user as any).avatar_url ? (
                                     <img src={(user as any).avatar_url} alt={user.name} className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-primary font-bold text-[13px]">{user.name.charAt(0)}</div>
+                                    <div className="w-full h-full flex items-center justify-center text-primary font-black text-[13px]" style={{ background: 'rgba(245,168,0,0.1)' }}>{user.name.charAt(0)}</div>
                                 )}
                             </div>
                             <div className="min-w-0">
-                                <p className="text-[13px] font-bold text-foreground truncate">{user.name}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-tight">Cliente Nordex</p>
+                                <p className="text-[13px] font-bold text-white truncate">{user.name}</p>
+                                <p className="text-[9px] uppercase tracking-[0.2em]" style={{ color: 'rgba(245,168,0,0.5)' }}>Cliente Nordex</p>
                             </div>
                         </div>
                     )}
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-semibold text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all"
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-semibold transition-all text-[#444] hover:text-red-400 hover:bg-red-500/5"
                     >
-                        <LogOut size={14} />
+                        <LogOut size={13} />
                         Sair da conta
                     </button>
                 </div>
             </aside>
 
+
+
             {/* ---------- CONTENT ---------- */}
             <div className="flex-1 min-w-0 flex flex-col">
                 {/* Mobile topbar */}
-                <div className="lg:hidden flex items-center gap-4 px-5 py-3 border-b border-border bg-card sticky top-0 z-20">
-                    <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground">
-                        <Menu size={22} />
+                <div className="lg:hidden flex items-center gap-4 px-5 py-3 sticky top-0 z-20"
+                    style={{ background: 'rgba(8,8,8,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #181818' }}>
+                    <button onClick={() => setSidebarOpen(true)} className="transition-colors" style={{ color: '#555' }}>
+                        <Menu size={20} />
                     </button>
                     <Image
                         src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-Nordex-Tech-remove-WSehNqsem3EZQ2jxpk0CKTKMU1hLtG.png"
-                        alt="Nordex" width={100} height={28} className="h-6 w-auto opacity-100"
+                        alt="Nordex" width={100} height={28} className="h-6 w-auto"
                     />
+                    {/* unread badge */}
+                    {totalUnread > 0 && (
+                        <span className="ml-auto text-[10px] font-black px-2 py-0.5 rounded-full"
+                            style={{ background: 'rgba(245,168,0,0.15)', color: '#F5A800', border: '1px solid rgba(245,168,0,0.3)' }}>
+                            {totalUnread}
+                        </span>
+                    )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+                <div className="flex-1 overflow-y-auto p-5 lg:p-8 custom-scrollbar">
                     {!project ? (
-                        <div className="max-w-2xl mx-auto mt-20 p-10 rounded-2xl bg-card border border-border text-center">
-                            <div className="w-16 h-16 rounded-full bg-secondary border border-border flex items-center justify-center mx-auto mb-6 text-primary">
-                                <Activity size={28} />
+                        <div className="max-w-xl mx-auto mt-24 text-center">
+                            <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-8"
+                                style={{ background: 'rgba(245,168,0,0.06)', border: '1px solid rgba(245,168,0,0.15)', boxShadow: '0 0 40px rgba(245,168,0,0.05)' }}>
+                                <Activity size={32} style={{ color: '#F5A800' }} />
                             </div>
-                            <h1 className="text-2xl font-semibold mb-3">Bem-vindo à Nordex!</h1>
-                            <p className="text-[15px] text-muted-foreground leading-relaxed">
+                            <h1 className="text-3xl font-black mb-4" style={{ fontFamily: 'var(--font-space-grotesk)' }}>Bem-vindo à <span className="gold-gradient-text">Nordex</span></h1>
+                            <p className="text-[15px] leading-relaxed" style={{ color: '#555' }}>
                                 Seu projeto está sendo preparado. Em breve você poderá acompanhar cada etapa do desenvolvimento aqui neste painel.
                             </p>
                         </div>
@@ -579,73 +606,76 @@ export default function DashboardPage() {
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in items-start" style={{ animationDelay: '100ms' }}>
 
-                                {/* Left Column: Pipeline + Chart */}
-                                <div className="lg:col-span-1 flex flex-col gap-6">
+                                {/* Left Column: Pipeline + Metrics */}
+                                <div className="lg:col-span-1 flex flex-col gap-5">
                                     {/* Pipeline Card */}
-                                    <div id="tour-pipeline" className="rounded-2xl bg-card border border-border p-6 flex flex-col relative w-full">
-                                        <div className="flex items-center gap-3 mb-6 relative z-10">
-                                            <div className="w-8 h-8 rounded-lg bg-secondary border border-border flex items-center justify-center text-muted-foreground">
-                                                <Activity size={16} />
+                                    <div id="tour-pipeline" className="content-card p-6 flex flex-col relative w-full">
+                                        {/* Gold top accent */}
+                                        <div className="absolute top-0 left-6 right-6 h-[1px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(245,168,0,0.35), transparent)' }} />
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-primary"
+                                                style={{ background: 'rgba(245,168,0,0.08)', border: '1px solid rgba(245,168,0,0.2)' }}>
+                                                <Activity size={15} />
                                             </div>
                                             <div>
-                                                <h2 className="text-[14px] font-semibold text-foreground leading-none">Progresso do Projeto</h2>
-                                                <p className="text-[11px] text-muted-foreground mt-1">Etapas de desenvolvimento</p>
+                                                <h2 className="text-[13px] font-black text-white leading-none uppercase tracking-wide">Pipeline</h2>
+                                                <p className="text-[10px] mt-0.5" style={{ color: '#444' }}>Etapas de desenvolvimento</p>
                                             </div>
                                         </div>
-                                        <div className="relative z-10">
-                                            <ProjectTracker currentStageId={project.current_stage} />
-                                        </div>
+                                        <ProjectTracker currentStageId={project.current_stage} />
                                     </div>
 
-                                    {/* Mini Dashboard Metrics container */}
-                                    <div id="tour-metrics" className="rounded-2xl bg-card border border-border p-6 flex flex-col relative h-[280px] w-full">
-                                        <div className="flex items-center gap-3 mb-5 relative z-10">
-                                            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-                                                <Activity size={16} />
-                                            </div>
-                                            <div>
-                                                <h2 className="text-[14px] font-semibold text-foreground leading-none">Métricas do Projeto</h2>
-                                                <p className="text-[11px] text-muted-foreground mt-1">Resumo operacional em tempo real</p>
-                                            </div>
+                                    {/* Metrics Bento Grid */}
+                                    <div id="tour-metrics" className="w-full">
+                                        <div className="flex items-center gap-2 mb-3 px-1">
+                                            <p className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: 'rgba(245,168,0,0.5)' }}>Métricas</p>
                                         </div>
-
-                                        <div className="flex-1 grid grid-cols-2 gap-3 relative z-10">
-                                            {/* Metric 1 */}
-                                            <div className="bg-secondary/30 rounded-xl border border-border/50 p-4 flex flex-col justify-center">
-                                                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Atualizações</p>
-                                                <p className="text-2xl font-black text-foreground">{totalUpdates}</p>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {/* Metric 1 — Atualizações */}
+                                            <div className="metric-card p-4 flex flex-col justify-between min-h-[100px]">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.15em]" style={{ color: '#444' }}>Atualizações</p>
+                                                <p className="text-3xl font-black gold-gradient-text mt-2">{totalUpdates}</p>
                                             </div>
 
-                                            {/* Metric 2 */}
-                                            <div className="bg-secondary/30 rounded-xl border border-border/50 p-4 flex flex-col justify-center">
-                                                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Dias Ativo</p>
-                                                <p className="text-2xl font-black text-foreground">{daysActive}</p>
+                                            {/* Metric 2 — Dias Ativo */}
+                                            <div className="metric-card p-4 flex flex-col justify-between min-h-[100px]">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.15em]" style={{ color: '#444' }}>Dias Ativo</p>
+                                                <p className="text-3xl font-black text-white mt-2">{daysActive}</p>
                                             </div>
 
-                                            {/* Metric 3 */}
-                                            <div className="bg-secondary/30 rounded-xl border border-border/50 p-4 flex flex-col justify-center">
-                                                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Última Entrega</p>
-                                                <p className="text-lg font-bold text-primary truncate leading-tight mt-1">{lastUpdateDate}</p>
+                                            {/* Metric 3 — Última Entrega */}
+                                            <div className="metric-card p-4 flex flex-col justify-between min-h-[100px]">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.15em]" style={{ color: '#444' }}>Última Entrega</p>
+                                                <p className="text-xl font-black text-primary mt-2 truncate">{lastUpdateDate}</p>
                                             </div>
 
-                                            {/* Metric 4 */}
-                                            <div className="bg-secondary/30 rounded-xl border border-border/50 p-4 flex flex-col justify-center relative overflow-hidden">
-                                                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1 relative z-10">Progresso Est.</p>
-                                                <p className="text-2xl font-black text-foreground relative z-10">{stageProgress}%</p>
-                                                <div className="absolute bottom-0 left-0 h-1 bg-primary/30 w-full" />
-                                                <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-1000" style={{ width: `${stageProgress}%` }} />
+                                            {/* Metric 4 — Progresso */}
+                                            <div className="metric-card p-4 flex flex-col justify-between min-h-[100px] overflow-hidden">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.15em] relative z-10" style={{ color: '#444' }}>Progresso</p>
+                                                <p className="text-3xl font-black gold-gradient-text mt-2 relative z-10">{stageProgress}%</p>
+                                                <div className="absolute bottom-0 left-0 h-[3px] w-full" style={{ background: '#1a1a1a' }} />
+                                                <div className="absolute bottom-0 left-0 h-[3px] transition-all duration-1000"
+                                                    style={{ width: `${stageProgress}%`, background: 'linear-gradient(90deg, #F5A800, #ffce00)' }} />
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Header: Feed vs Chat Popup trigger */}
-                                <div id="tour-updates" tabIndex={0} className="lg:col-span-2 rounded-2xl bg-card border border-border h-[770px] overflow-hidden focus:outline-none flex flex-col">
-                                    <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md px-4 sm:px-8 py-4 sm:py-5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between shrink-0 gap-4">
-                                        <div className="flex items-center w-full">
-                                            <h2 className="text-[16px] font-black tracking-tight flex items-center gap-2">
-                                                <Activity className="text-primary" size={18} /> Histórico e Atualizações
-                                            </h2>
+                                {/* Feed de Atualizações */}
+                                <div id="tour-updates" tabIndex={0} className="lg:col-span-2 content-card h-[770px] overflow-hidden focus:outline-none flex flex-col">
+                                    <div className="sticky top-0 z-20 px-5 sm:px-8 py-4 sm:py-5 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                                        style={{ background: 'rgba(14,14,14,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1c1c1c' }}>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(245,168,0,0.08)', border: '1px solid rgba(245,168,0,0.2)' }}>
+                                                <Activity size={13} style={{ color: '#F5A800' }} />
+                                            </div>
+                                            <h2 className="text-[14px] font-black tracking-tight text-white">Histórico e Atualizações</h2>
+                                            {hasUnviewedUpdates && (
+                                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse"
+                                                    style={{ background: 'rgba(245,168,0,0.12)', color: '#F5A800', border: '1px solid rgba(245,168,0,0.25)' }}>
+                                                    NOVO
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 
@@ -653,79 +683,89 @@ export default function DashboardPage() {
                                     <div className="flex-1 overflow-y-auto custom-scrollbar px-5 sm:px-8 py-8 overscroll-contain">
                                         {updates?.length === 0 ? (
                                             <div className="h-[400px] flex flex-col items-center justify-center text-center">
-                                                <div className="w-16 h-16 rounded-full bg-secondary/50 border border-border flex items-center justify-center mb-4 text-muted-foreground">
-                                                    <Info size={24} />
+                                                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 shimmer-bg"
+                                                    style={{ border: '1px solid rgba(245,168,0,0.1)' }}>
+                                                    <Info size={22} style={{ color: 'rgba(245,168,0,0.4)' }} />
                                                 </div>
-                                                <p className="text-[14px] font-medium text-foreground">Nenhuma atualização ainda.</p>
-                                                <p className="text-[13px] text-muted-foreground mt-1 max-w-[280px]">Conforme o projeto avança, as novidades serão registradas aqui.</p>
+                                                <p className="text-[15px] font-bold text-white mb-2">Nenhuma atualização ainda.</p>
+                                                <p className="text-[12px] max-w-[240px] leading-relaxed" style={{ color: '#444' }}>Conforme o projeto avança, as novidades serão registradas aqui.</p>
                                             </div>
                                         ) : (
-                                            <div className="relative border-l-2 border-border/50 ml-4 space-y-10 pb-6">
+                                            <div className="relative ml-4 space-y-8 pb-6"
+                                                style={{ borderLeft: '1px solid rgba(245,168,0,0.12)' }}>
                                                 {updates?.map((upd: ProjectUpdate) => {
                                                             const isEditing = editingNoteId === upd.id
                                                             const hasNote = Boolean(upd.client_note)
 
-                                                            // Revision system: detect if this update is a correction of another
                                                             const isCorrection = Boolean(upd.revision_of)
                                                             const originalUpdate = isCorrection
                                                                 ? updates.find((u: ProjectUpdate) => u.id === upd.revision_of)
                                                                 : null
-                                                            // Detect if this update was superseded by a later correction
                                                             const correctionUpdate = updates.find((u: ProjectUpdate) => u.revision_of === upd.id)
                                                             const isSuperseded = Boolean(correctionUpdate)
 
                                                             return (
-                                                                <div key={upd.id} className="relative pl-8 animate-fade-in group">
-                                                                    {/* Timeline Dot — blue for corrections, gold for regular */}
-                                                                    <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-card border-[3px] shadow-[0_0_10px_rgba(245,168,0,0.4)] ${
-                                                                        isCorrection ? 'border-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'border-primary'
-                                                                    }`} />
+                                                                <div key={upd.id} className="relative pl-8 animate-fade-in">
+                                                                    {/* Timeline Dot */}
+                                                                    <div className={`absolute -left-[7px] top-2 w-3.5 h-3.5 rounded-full ${
+                                                                        isCorrection
+                                                                            ? 'bg-blue-500 shadow-[0_0_8px_rgba(96,165,250,0.5)]'
+                                                                            : 'timeline-dot-active shadow-[0_0_10px_rgba(245,168,0,0.5)]'
+                                                                    }`}
+                                                                        style={isCorrection ? {} : { background: '#F5A800' }}
+                                                                    />
 
                                                                     {/* Update Content */}
                                                                     <div
-                                                                        className="bg-secondary/20 border border-border rounded-xl p-5 mb-4 relative overflow-hidden group/card"
+                                                                        className="feed-card p-5 mb-4 group/card"
                                                                         onMouseEnter={() => !upd.viewed_at && markAsViewed(upd.id)}
                                                                     >
                                                                         {upd.preview_url && project.preview_url !== upd.preview_url && (
-                                                                            <div className="absolute top-0 right-0 px-3 py-1 bg-amber-500/10 border-l border-b border-amber-500/20 rounded-bl-lg flex items-center gap-1.5 animate-pulse">
-                                                                                <AlertCircle size={10} className="text-amber-500" />
-                                                                                <span className="text-[9px] font-bold text-amber-500 uppercase tracking-tight">Build em Defasagem</span>
+                                                                            <div className="absolute top-0 right-0 px-3 py-1.5 rounded-bl-lg flex items-center gap-1.5"
+                                                                                style={{ background: 'rgba(245,168,0,0.08)', borderLeft: '1px solid rgba(245,168,0,0.2)', borderBottom: '1px solid rgba(245,168,0,0.2)' }}>
+                                                                                <AlertCircle size={10} style={{ color: '#F5A800' }} />
+                                                                                <span className="text-[9px] font-bold uppercase tracking-tight" style={{ color: '#F5A800' }}>Build Desatualizada</span>
                                                                             </div>
                                                                         )}
 
-                                                                        <div className="flex items-center justify-between mb-2">
+                                                                        <div className="flex items-center justify-between mb-3">
                                                                             <div className="flex items-center gap-2">
-                                                                                <span className="text-[11px] font-bold text-primary tracking-widest uppercase bg-primary/10 px-2 py-0.5 rounded-sm">
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-md"
+                                                                                    style={{ background: 'rgba(245,168,0,0.1)', color: '#F5A800', border: '1px solid rgba(245,168,0,0.2)' }}>
                                                                                     Etapa {upd.stage}
                                                                                 </span>
                                                                                 {upd.status === 'authorized' && (
-                                                                                    <span className="text-[9px] font-bold text-green-500 uppercase flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-sm">
-                                                                                        <Check size={10} /> Aprovado
+                                                                                    <span className="text-[9px] font-bold uppercase flex items-center gap-1 px-2 py-0.5 rounded-md"
+                                                                                        style={{ background: 'rgba(34,197,94,0.08)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)' }}>
+                                                                                        <Check size={9} /> Aprovado
                                                                                     </span>
                                                                                 )}
                                                                                 {upd.status === 'denied' && (
-                                                                                    <span className="text-[9px] font-bold text-red-500 uppercase flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded-sm">
-                                                                                        <X size={10} /> Ajuste Solicitado
+                                                                                    <span className="text-[9px] font-bold uppercase flex items-center gap-1 px-2 py-0.5 rounded-md"
+                                                                                        style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
+                                                                                        <X size={9} /> Ajuste Solicitado
                                                                                     </span>
                                                                                 )}
                                                                             </div>
-                                                                            <span className="text-[12px] font-medium text-muted-foreground">
-                                                                                 {format(new Date(upd.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
-                                                                             </span>
+                                                                            <span className="text-[11px]" style={{ color: '#444' }}>
+                                                                                {format(new Date(upd.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
+                                                                            </span>
                                                                         </div>
-                                                                        <div className="flex items-start justify-between gap-4 mb-2">
-                                                                            <h4 className="text-[16px] font-semibold text-foreground flex items-center gap-2">
+                                                                        <div className="flex items-start justify-between gap-4 mb-3">
+                                                                            <h4 className="text-[15px] font-bold text-white leading-snug flex items-center gap-2">
                                                                                 {upd.title}
                                                                                 {isSuperseded && (
-                                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-[9px] font-black uppercase tracking-wider">
-                                                                                        <CheckCircle2 size={10} /> Resolvido
+                                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider"
+                                                                                        style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', color: '#4ade80' }}>
+                                                                                        <CheckCircle2 size={9} /> Resolvido
                                                                                     </span>
                                                                                 )}
                                                                             </h4>
                                                                             {upd.hours_spent && upd.hours_spent > 0 && (
-                                                                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background border border-border/50 rounded-lg shrink-0">
-                                                                                    <Timer size={12} className="text-primary" />
-                                                                                    <span className="text-[13px] font-black text-foreground">{formatHours(upd.hours_spent)}</span>
+                                                                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg shrink-0"
+                                                                                    style={{ background: 'rgba(245,168,0,0.06)', border: '1px solid rgba(245,168,0,0.15)' }}>
+                                                                                    <Timer size={11} style={{ color: '#F5A800' }} />
+                                                                                    <span className="text-[12px] font-black" style={{ color: '#F5A800' }}>{formatHours(upd.hours_spent)}</span>
                                                                                 </div>
                                                                             )}
                                                                         </div>
@@ -760,18 +800,20 @@ export default function DashboardPage() {
                                                                             </div>
                                                                         )}
                                                                         {upd.message && (
-                                                                            <div className="text-[14px] text-muted-foreground/90 leading-relaxed bg-background/50 p-3 rounded-lg border border-border/30 mb-4">
+                                                                            <div className="text-[13px] leading-relaxed p-3 rounded-xl mb-4"
+                                                                                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#888' }}>
                                                                                 {upd.message}
                                                                             </div>
                                                                         )}
 
                                                                         {/* Authorization Buttons */}
                                                                         {upd.status === 'pending' && (
-                                                                            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/30">
+                                                                            <div className="flex items-center gap-2 mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                                                                                 <button
                                                                                     disabled={approvingUpdateId === upd.id}
                                                                                     onClick={() => handleUpdateStatus(upd.id, 'authorized')}
-                                                                                    className="h-8 px-4 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold hover:opacity-90 flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(245,168,0,0.1)]"
+                                                                                    className="h-8 px-4 rounded-lg text-[11px] font-black flex items-center gap-1.5 transition-all"
+                                                                                    style={{ background: '#22c55e', color: '#000', boxShadow: '0 0 16px rgba(34,197,94,0.3)' }}
                                                                                 >
                                                                                     {approvingUpdateId === upd.id ? <Loader2 size={12} className="animate-spin" /> : <ThumbsUp size={12} />}
                                                                                     Aprovar Etapa
@@ -779,7 +821,8 @@ export default function DashboardPage() {
                                                                                 <button
                                                                                     disabled={approvingUpdateId === upd.id}
                                                                                     onClick={() => setShowUpdateRejectionFormId(upd.id)}
-                                                                                    className="h-8 px-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 text-[11px] font-bold flex items-center gap-1.5 transition-all"
+                                                                                    className="h-8 px-4 rounded-lg text-[11px] font-black flex items-center gap-1.5 transition-all"
+                                                                                    style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
                                                                                 >
                                                                                     <ThumbsDown size={12} />
                                                                                     Solicitar Ajuste
@@ -798,10 +841,11 @@ export default function DashboardPage() {
                                                                                                 } : prev, false);
                                                                                             }
                                                                                         }}
-                                                                                        className={`h-8 px-3 rounded-lg border flex items-center gap-1.5 transition-all ml-auto text-[11px] font-bold ${!upd.viewed_at
-                                                                                            ? 'bg-primary text-primary-foreground border-primary shadow-[0_0_15px_rgba(245,168,0,0.3)] animate-pulse-slow'
-                                                                                            : 'bg-secondary/50 border-border text-muted-foreground hover:text-primary'
-                                                                                            }`}
+                                                                                        className="h-8 px-3 rounded-lg flex items-center gap-1.5 transition-all ml-auto text-[11px] font-black"
+                                                                                        style={!upd.viewed_at
+                                                                                            ? { background: '#F5A800', color: '#000', boxShadow: '0 0 16px rgba(245,168,0,0.35)' }
+                                                                                            : { background: 'rgba(255,255,255,0.04)', color: '#666', border: '1px solid rgba(255,255,255,0.08)' }
+                                                                                        }
                                                                                     >
                                                                                         <LinkIcon size={12} /> Visualizar Build
                                                                                     </a>
@@ -959,57 +1003,82 @@ export default function DashboardPage() {
             <AnimatePresence>
                 {/* Welcome Popup */}
                 {showWelcome && (
-                    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-500">
+                    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4"
+                        style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)' }}>
                         <motion.div 
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            initial={{ opacity: 0, scale: 0.92, y: 24 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
-                            className="bg-card border border-border rounded-2xl max-w-xl w-full p-8 shadow-2xl relative overflow-hidden"
+                            transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+                            className="max-w-xl w-full p-8 relative overflow-hidden"
+                            style={{
+                                background: '#0d0d0d',
+                                border: '1px solid rgba(245,168,0,0.2)',
+                                borderRadius: '24px',
+                                boxShadow: '0 0 80px rgba(245,168,0,0.06), 0 40px 80px rgba(0,0,0,0.6)'
+                            }}
                         >
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-3xl" />
+                            {/* Top line */}
+                            <div className="absolute top-0 left-8 right-8 h-[1px]"
+                                style={{ background: 'linear-gradient(90deg, transparent, rgba(245,168,0,0.5), transparent)' }} />
+                            {/* Gold glow orb top-right */}
+                            <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full pointer-events-none"
+                                style={{ background: 'radial-gradient(circle, rgba(245,168,0,0.07) 0%, transparent 70%)' }} />
                             
                             <div className="flex flex-col items-center text-center relative z-10">
-                                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-6 animate-bounce">
-                                    <FileText size={32} />
+                                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
+                                    style={{ background: 'rgba(245,168,0,0.08)', border: '1px solid rgba(245,168,0,0.25)', boxShadow: '0 0 24px rgba(245,168,0,0.1)' }}>
+                                    <FileText size={28} style={{ color: '#F5A800' }} />
                                 </div>
                                 
-                                <h2 className="text-2xl font-bold mb-4 tracking-tight">Acordo de Confidencialidade</h2>
+                                <h2 className="text-2xl font-black mb-2 tracking-tight text-white">Acordo de Confidencialidade</h2>
+                                <p className="text-[12px] uppercase tracking-[0.2em] mb-6" style={{ color: 'rgba(245,168,0,0.5)' }}>Nordex — NDA</p>
                                 
-                                <div className="bg-secondary/30 rounded-xl p-5 text-left mb-6 border border-border/50 max-h-60 overflow-y-auto custom-scrollbar">
-                                    <p className="text-[13px] text-muted-foreground leading-relaxed mb-4">
+                                <div className="w-full rounded-xl p-5 text-left mb-6 max-h-60 overflow-y-auto custom-scrollbar"
+                                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                    <p className="text-[13px] leading-relaxed mb-4" style={{ color: '#666' }}>
                                         Para garantir a segurança e a integridade de todos os projetos na plataforma Nordex, solicitamos que você aceite os nossos termos de confidencialidade antes de prosseguir.
                                     </p>
-                                    <ul className="text-[12px] text-muted-foreground space-y-2 list-disc pl-4">
-                                        <li>Não compartilhar credenciais ou links de acesso;</li>
-                                        <li>Manter sigilo sobre as estratégias e tecnologias discutidas;</li>
-                                        <li>Proteger os dados de terceiros acessados no portal;</li>
-                                        <li>Reportar imediatamente qualquer atividade suspeita.</li>
+                                    <ul className="text-[12px] space-y-2.5" style={{ color: '#555' }}>
+                                        {['Não compartilhar credenciais ou links de acesso','Manter sigilo sobre as estratégias e tecnologias discutidas','Proteger os dados de terceiros acessados no portal','Reportar imediatamente qualquer atividade suspeita'].map((item, i) => (
+                                            <li key={i} className="flex items-start gap-2.5">
+                                                <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: '#F5A800' }} />
+                                                {item}
+                                            </li>
+                                        ))}
                                     </ul>
                                 </div>
 
-                                <div className="flex items-center gap-3 mb-8 w-full justify-center">
+                                <div className="flex items-center gap-3 mb-7 w-full">
                                     <button 
                                         onClick={() => setAgreedToTerms(!agreedToTerms)}
-                                        className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${
-                                            agreedToTerms ? 'bg-primary border-primary text-primary-foreground' : 'bg-secondary border-border'
-                                        }`}
+                                        className="w-6 h-6 rounded-lg flex items-center justify-center transition-all shrink-0"
+                                        style={agreedToTerms
+                                            ? { background: '#F5A800', border: '1px solid rgba(245,168,0,0.5)', boxShadow: '0 0 12px rgba(245,168,0,0.3)' }
+                                            : { background: '#111', border: '1px solid #333' }
+                                        }
                                     >
-                                        {agreedToTerms && <Check size={14} />}
+                                        {agreedToTerms && <Check size={13} color="#000" />}
                                     </button>
-                                    <p className="text-[13px] font-medium">Li e concordo com os termos de confidencialidade.</p>
+                                    <p className="text-[13px] text-left" style={{ color: '#666' }}>Li e concordo com os termos de confidencialidade.</p>
                                 </div>
 
                                 <button 
                                     onClick={closeWelcome}
                                     disabled={!agreedToTerms}
-                                    className="w-full bg-primary text-primary-foreground h-12 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20"
+                                    className="w-full h-12 rounded-xl font-black flex items-center justify-center gap-2 transition-all text-[14px]"
+                                    style={agreedToTerms
+                                        ? { background: '#F5A800', color: '#000', boxShadow: '0 0 32px rgba(245,168,0,0.35)' }
+                                        : { background: 'rgba(255,255,255,0.04)', color: '#444', cursor: 'not-allowed', border: '1px solid rgba(255,255,255,0.06)' }
+                                    }
                                 >
-                                    <CheckCircle2 size={18} />
+                                    <CheckCircle2 size={17} />
                                     Iniciar meu projeto agora
                                 </button>
                             </div>
                         </motion.div>
                     </div>
                 )}
+
 
                 {/* Global Squad Hover Popover */}
                 {hoverSquadRect?.member?.bio && !showChatPopup && (

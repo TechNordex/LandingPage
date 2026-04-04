@@ -12,6 +12,8 @@ import { LogOut, Plus, Activity, Send, Loader2, X, Edit, Users, Shield, User, Fo
 import type { Project, PortalUser, ProjectUpdate } from '@/lib/types'
 
 import { STAGES } from '@/lib/types'
+import AlertCenter from './components/AlertCenter'
+import UpdateTimeline from './components/UpdateTimeline'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import ImageCropperModal from '@/components/common/ImageCropper'
@@ -1124,48 +1126,6 @@ export default function AdminPage() {
                                         <h3 className="text-[14px] font-bold text-foreground flex items-center gap-2"><AlertCircle size={16} className="text-primary" /> Centro de Alertas</h3>
                                         {/* Actions removed from overview alerts */}
                                     </div>
-                                    <div className="p-5 space-y-3">
-                                        {projects.filter(p => (p.preview_status === 'rejected' || p.preview_status === 'pending' || p.updates?.some((u: any) => u.status === 'denied'))).length === 0 ? (
-                                            <div className="text-[13px] text-muted-foreground text-center py-8 border border-dashed border-border/50 rounded-xl">
-                                                <CheckCircle2 size={28} className="mx-auto mb-2 opacity-20 text-green-500" />
-                                                Todos os projetos estão em fluxo normal.
-                                            </div>
-                                        ) : (
-                                            <>
-                                                {projects.filter(p => p.preview_status === 'rejected').map(p => (
-                                                    <div key={`rej-${p.id}`} className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center"><AlertCircle size={16} className="text-red-500" /></div>
-                                                            <div>
-                                                                <p className="text-[13px] font-bold">{p.name} — Ajuste Solicitado</p>
-                                                                <p className="text-[11px] text-muted-foreground">Cliente pediu revisão.</p>
-                                                            </div>
-                                                        </div>
-                                                        <button onClick={() => { setActiveTab('projects'); setExpandedProjectId(p.id); }} className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-[11px] font-bold rounded-lg">Ver</button>
-                                                    </div>
-                                                ))}
-                                                {projects.filter(p => p.preview_status !== 'rejected' && p.updates?.some((u: any) => u.status === 'denied')).map(p => (
-                                                    <div key={`den-${p.id}`} className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center"><X size={16} className="text-rose-500" /></div>
-                                                            <div>
-                                                                <p className="text-[13px] font-bold">{p.name} — Entrega Recusada</p>
-                                                                <p className="text-[11px] text-muted-foreground">Uma ou mais etapas foram negadas.</p>
-                                                            </div>
-                                                        </div>
-                                                        <button onClick={() => { setActiveTab('projects'); setExpandedProjectId(p.id); }} className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[11px] font-bold rounded-lg">Ver</button>
-                                                    </div>
-                                                ))}
-                                                {projects.filter(p => p.preview_status === 'pending').map(p => (
-                                                    <div key={`pen-${p.id}`} className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center"><Clock size={16} className="text-amber-500" /></div>
-                                                            <div>
-                                                                <p className="text-[13px] font-bold">{p.name} — Em Homologação</p>
-                                                                <p className="text-[11px] text-muted-foreground">Aguardando decisão do cliente.</p>
-                                                            </div>
-                                                        </div>
-                                                        <button onClick={() => { setActiveTab('projects'); setExpandedProjectId(p.id); }} className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-[11px] font-bold rounded-lg">Ver</button>
                                                     </div>
                                                 ))}
                                             </>
@@ -1687,128 +1647,10 @@ export default function AdminPage() {
                                                                         {(!proj.updates || proj.updates.length === 0) ? (
                                                                             <p className="text-[13px] text-muted-foreground text-center py-6">Este projeto ainda não recebeu nenhuma atualização estrutural na pipeline.</p>
                                                                         ) : (
-                                                                            <div className="relative border-l-2 border-border/50 ml-3 space-y-10 pb-4">
-                                                                                {proj.updates?.map((upd: any) => {
-                                                                                    const isCorrection = Boolean(upd.revision_of);
-                                                                                    const originalUpdate = isCorrection ? proj.updates?.find((u: any) => u.id === upd.revision_of) : null;
-                                                                                    const isSuperseded = proj.updates?.some((u: any) => u.revision_of === upd.id);
-
-                                                                                    return (
-                                                                                        <div key={upd.id} className="relative pl-7 group">
-                                                                                            <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-card border-[3px] shadow-[0_0_10px_rgba(245,168,0,0.4)] ${
-                                                                                                isCorrection ? 'border-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]' : 'border-primary'
-                                                                                            }`} />
-                                                                                            
-                                                                                            <div className="flex items-center justify-between mb-2">
-                                                                                                <div className="flex items-center gap-2">
-                                                                                                    <span className="text-[10px] sm:text-[11px] font-bold text-primary tracking-widest uppercase bg-primary/10 px-2 py-0.5 rounded-sm">
-                                                                                                        Etapa {upd.stage}
-                                                                                                    </span>
-                                                                                                    {isSuperseded && (
-                                                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-[9px] font-black uppercase tracking-wider">
-                                                                                                            <Check size={10} /> Resolvido
-                                                                                                        </span>
-                                                                                                    )}
-                                                                                                </div>
-                                                                                                <span className="text-[11px] sm:text-[12px] font-medium text-muted-foreground">
-                                                                                                    {format(new Date(upd.created_at), "dd 'de' MMM 'as' HH:mm", { locale: ptBR })}
-                                                                                                </span>
-                                                                                            </div>
-                                                                                            <h4 className="text-[15px] sm:text-[16px] font-semibold text-foreground mb-1">
-                                                                                                {upd.title}
-                                                                                            </h4>
-                                                                                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-3">
-                                                                                                <Users size={12} className="text-primary/60" /> 
-                                                                                                <span>Postado por: <b className="text-foreground">{upd.creator_name || 'Sistema'}</b></span>
-                                                                                            </div>
-
-                                                                                            {/* Revision Context Banners */}
-                                                                                            {isCorrection && originalUpdate && (
-                                                                                                <div className="mb-4 p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg flex items-start gap-3">
-                                                                                                    <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
-                                                                                                        <RefreshCw size={12} className="text-blue-400" />
-                                                                                                    </div>
-                                                                                                    <div>
-                                                                                                        <p className="text-[11px] font-bold text-blue-400 uppercase tracking-wider mb-0.5">Atualização Corretiva</p>
-                                                                                                        <p className="text-[12px] text-foreground/80 leading-snug">
-                                                                                                            Esta versão é uma correção direta da atualização: <span className="font-bold text-blue-300">"{originalUpdate.title}"</span>.
-                                                                                                        </p>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            )}
-
-                                                                                            {isSuperseded && (
-                                                                                                <div className="mb-4 p-3 bg-green-500/5 border border-green-500/10 rounded-lg flex items-start gap-3">
-                                                                                                    <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-                                                                                                        <CheckCircle2 size={12} className="text-green-400" />
-                                                                                                    </div>
-                                                                                                    <div>
-                                                                                                        <p className="text-[11px] font-bold text-green-400 uppercase tracking-wider mb-0.5">Versão Endereçada</p>
-                                                                                                        <p className="text-[12px] text-foreground/80 leading-snug">
-                                                                                                            Os pontos desta versão foram corrigidos na atualização mais recente.
-                                                                                                        </p>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            )}
-
-                                                                                            {upd.message && <div className="text-[13px] sm:text-[14px] text-muted-foreground/90 leading-relaxed bg-secondary/30 p-3 rounded-lg border border-border">{upd.message}</div>}
-
-                                                                                            {/* Audit & Engagement Indicators */}
-                                                                                            <div className="mt-4 pt-4 border-t border-border/30">
-                                                                                                <div className="flex flex-wrap items-center gap-3 mb-4">
-                                                                                                    {upd.viewed_at ? (
-                                                                                                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-green-500/10 text-green-400 text-[10px] font-bold border border-green-500/20">
-                                                                                                            <CheckCircle2 size={12}/> Visto pelo cliente em {format(new Date(upd.viewed_at), "dd/MM, HH:mm")}
-                                                                                                        </div>
-                                                                                                    ) : (
-                                                                                                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/10 text-muted-foreground text-[10px] font-bold border border-border">
-                                                                                                            <Clock size={12}/> Ainda não visualizado
-                                                                                                        </div>
-                                                                                                    )}
-
-                                                                                                    {upd.status === 'authorized' && (
-                                                                                                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary text-[10px] font-bold border border-primary/20">
-                                                                                                            <ThumbsUp size={12}/> Autorizado pelo Cliente
-                                                                                                        </div>
-                                                                                                    )}
-
-                                                                                                    {upd.status === 'denied' && (
-                                                                                                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-red-500/10 text-red-400 text-[10px] font-bold border border-red-500/20">
-                                                                                                            <ThumbsDown size={12}/> Ajuste Solicitado
-                                                                                                        </div>
-                                                                                                    )}
-                                                                                                </div>
-
-                                                                                                {upd.status === 'denied' && upd.feedback && (
-                                                                                                    <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 mb-4 relative">
-                                                                                                        <div className="absolute -top-2 left-4 bg-background border border-red-500/30 px-3 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest text-red-400 flex items-center gap-1.5">
-                                                                                                            <AlertCircle size={10}/> Restrição do Cliente
-                                                                                                        </div>
-                                                                                                        <p className="text-[13px] text-foreground font-medium italic leading-relaxed">
-                                                                                                            "{upd.feedback}"
-                                                                                                        </p>
-                                                                                                    </div>
-                                                                                                )}
-
-                                                                                                {upd.client_note ? (
-                                                                                                    <div className="bg-card border border-primary/30 rounded-xl p-4 sm:p-5 shadow-sm relative">
-                                                                                                        <div className="absolute -top-3 left-4 bg-background border border-primary/30 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest text-primary flex items-center gap-1.5">
-                                                                                                            <MessageSquareText size={11}/> Diário do Cliente
-                                                                                                        </div>
-                                                                                                        <p className="text-[13px] sm:text-[14px] text-foreground/90 leading-relaxed whitespace-pre-wrap mt-2 font-medium">
-                                                                                                            {upd.client_note}
-                                                                                                        </p>
-                                                                                                    </div>
-                                                                                                ) : (
-                                                                                                    <div className="inline-flex items-center gap-2 text-[11px] sm:text-[12px] font-medium text-muted-foreground italic px-3 py-2 bg-secondary/20 rounded-lg">
-                                                                                                        <Clock size={13} className="opacity-50"/> Cliente ainda não mandou anotações para este update.
-                                                                                                    </div>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    );
-                                                                                })}
-                                                                            </div>
+                                                                            <UpdateTimeline 
+                                                                                project={proj} 
+                                                                                onUpdateSaved={() => fetchData()} 
+                                                                            />
                                                                         )}
                                                                     </div>
                                                                 </div>

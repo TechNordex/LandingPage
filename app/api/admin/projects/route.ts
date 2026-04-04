@@ -71,10 +71,15 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'client_id e name são obrigatórios' }, { status: 400 })
         }
 
+        // estimated_minutes is an integer (minutes); stored in the estimated_hours column as integer minutes
+        const estimatedVal = body.estimated_minutes != null 
+            ? Math.round(Number(body.estimated_minutes)) 
+            : (body.estimated_hours != null ? Math.round(Number(body.estimated_hours)) : null)
+
         const result = await db.query(
             `INSERT INTO projects (client_id, name, description, preview_url, estimated_hours, stage_url, prod_url)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-            [client_id, name, description || null, preview_url || null, estimated_hours || null, body.stage_url || null, body.prod_url || null]
+            [client_id, name, description || null, preview_url || null, estimatedVal, body.stage_url || null, body.prod_url || null]
         )
         const newProject = result.rows[0]
         
@@ -96,16 +101,20 @@ export async function PUT(req: NextRequest) {
 
     try {
         const body = await req.json()
-        const { id, name, description, preview_url, estimated_hours, stage_url, prod_url } = body
+        const { id, name, description, preview_url, stage_url, prod_url } = body
         if (!id || !name) {
             return NextResponse.json({ error: 'id e name são obrigatórios para edição' }, { status: 400 })
         }
+
+        const estimatedVal = body.estimated_minutes != null 
+            ? Math.round(Number(body.estimated_minutes)) 
+            : (body.estimated_hours != null ? Math.round(Number(body.estimated_hours)) : null)
 
         const result = await db.query(
             `UPDATE projects 
              SET name = $1, description = $2, preview_url = $3, estimated_hours = $4, stage_url = $5, prod_url = $6, updated_at = NOW() 
              WHERE id = $7 RETURNING *`,
-            [name, description || null, preview_url || null, estimated_hours || null, body.stage_url || null, body.prod_url || null, id]
+            [name, description || null, preview_url || null, estimatedVal, stage_url || null, prod_url || null, id]
         )
         
         if (result.rows.length === 0) {

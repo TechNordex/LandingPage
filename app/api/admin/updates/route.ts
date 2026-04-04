@@ -36,10 +36,14 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { project_id, stage, title, message, preview_url, hours_spent, revision_of } = await req.json()
+        const { project_id, stage, title, message, preview_url, minutes_spent, hours_spent, revision_of } = await req.json()
         if (!project_id || !stage || !title) {
             return NextResponse.json({ error: 'project_id, stage e title são obrigatórios' }, { status: 400 })
         }
+
+        const timeVal = minutes_spent != null 
+            ? Math.round(Number(minutes_spent)) 
+            : (hours_spent != null ? Math.round(Number(hours_spent)) : null)
 
         // Insert the update (with optional revision_of link)
         const insertResult = await db.query(
@@ -53,7 +57,7 @@ export async function POST(req: NextRequest) {
                 title,
                 message || null,
                 preview_url || null,
-                hours_spent || null,
+                timeVal,
                 session.id,
                 'pending',
                 revision_of || null,
@@ -128,5 +132,42 @@ export async function POST(req: NextRequest) {
     } catch (error: any) {
         console.error('[admin/updates POST]', error)
         return NextResponse.json({ error: error.message || 'Erro ao postar atualização' }, { status: 500 })
+    }
+}
+
+// PUT - edit an existing update
+export async function PUT(req: NextRequest) {
+    const session = await getSession()
+    if (!session || session.role !== 'admin') {
+        return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
+    }
+
+    try {
+        const body = await req.json()
+        console.log('[admin/updates PUT] Iniciando edição:', body)
+        
+        const { id, title, message, preview_url, minutes_spent, hours_spent } = body
+        if (!id || !title) {
+            console.error('[admin/updates PUT] Faltam campos obrigatórios:', { id, title })
+            return NextResponse.json({ error: 'id e title são obrigatórios' }, { status: 400 })
+        }
+
+        const timeVal = minutes_spent != null 
+            ? Math.round(Number(minutes_spent)) 
+            : (hours_spent != null ? Math.round(Number(hours_spent)) : null)
+
+        console.log('[admin/updates PUT] Executando query para ID:', id)
+        await db.query(
+            `UPDATE project_updates 
+             SET title = $1, message = $2, preview_url = $3, hours_spent = $4 
+             WHERE id::text = $5::text`,
+            [title, message || null, preview_url || null, timeVal, String(id)]
+        )
+
+        console.log('[admin/updates PUT] Sucesso ao editar ID:', id)
+        return NextResponse.json({ success: true })
+    } catch (error: any) {
+        console.error('[admin/updates PUT] Erro fatal:', error)
+        return NextResponse.json({ error: error.message || 'Erro ao editar atualização' }, { status: 500 })
     }
 }

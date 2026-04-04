@@ -1,0 +1,8 @@
+[[31merror[39m] app/admin/page.tsx: SyntaxError: Unexpected token. Did you mean `{'}'}` or `&rbrace;`? (2313:14)
+[[31merror[39m] [0m [90m 2311 |[39m                     [33m<[39m[33m/[39m[33mdiv[39m[33m>[39m
+[[31merror[39m]  [90m 2312 |[39m                 [33m<[39m[33m/[39m[33mdiv[39m[33m>[39m
+[[31merror[39m] [31m[1m>[22m[39m[90m 2313 |[39m             )[37m[41m[1m}[22m[49m[39m
+[[31merror[39m]  [90m      |[39m              [31m[1m^[22m[39m
+[[31merror[39m]  [90m 2314 |[39m
+[[31merror[39m]  [90m 2315 |[39m                 [33m{[39mactiveTab [33m===[39m [32m'team'[39m [33m&&[39m (
+[[31merror[39m]  [90m 2316 |[39m                     [33m<[39m[33mdiv[39m [33mclassName[39m[33m=[39m[32m"flex-1 p-5 lg:p-8 overflow-y-auto custom-scrollbar"[39m[33m>[39m[0m

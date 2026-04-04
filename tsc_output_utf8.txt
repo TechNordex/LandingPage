@@ -1,0 +1,12 @@
+﻿app/admin/page.tsx(1136,10): error TS17008: JSX element 'div' has no corresponding closing tag.
+app/admin/page.tsx(1228,14): error TS17008: JSX element 'div' has no corresponding closing tag.
+app/admin/page.tsx(1245,22): error TS17008: JSX element 'div' has no corresponding closing tag.
+app/admin/page.tsx(1484,18): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/admin/page.tsx(1487,21): error TS2657: JSX expressions must have one parent element.
+app/admin/page.tsx(2286,45): error TS2657: JSX expressions must have one parent element.
+app/admin/page.tsx(2312,21): error TS1005: ')' expected.
+app/admin/page.tsx(2313,18): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/admin/page.tsx(2381,18): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/admin/page.tsx(3629,9): error TS1005: ')' expected.
+app/admin/page.tsx(3631,1): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+app/admin/page.tsx(3632,1): error TS1005: '</' expected.
