@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat /home/deyvid/LandingPage/tailwind.config.*)",
+      "Bash(npx tsc:*)",
+      "Read(//home/deyvid/**)"
+    ]
+  }
+}

@@ -193,6 +193,105 @@
   }
 }
 
+@keyframes terminalFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
+}
+
+/* ── EinCode-style utilities ── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.animate-fade-in-up  { animation: fade-in-up 0.6s cubic-bezier(0.4,0,0.2,1) forwards; }
+.animate-scale-in    { animation: scale-in   0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
+.animate-float       { animation: float 4s ease-in-out infinite; }
+
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+.stagger-6 { animation-delay: 0.6s; }
+
+.typing-cursor::after {
+  content: "▋";
+  animation: blink 1s step-end infinite;
+  color: oklch(0.78 0.18 80);
+}
+
+.glass {
+  background: oklch(from var(--card) l c h / 0.6);
+  backdrop-filter: blur(12px) saturate(1.5);
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+}
+
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1),
+              box-shadow 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px -8px rgba(0,0,0,0.4),
+              0 0 40px oklch(0.78 0.18 80 / 0.15);
+}
+
+/* Smooth underline animation */
+.underline-animate {
+  position: relative;
+}
+.underline-animate::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: oklch(0.78 0.18 80);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.underline-animate:hover::after { width: 100%; }
+
+/* Shimmer */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, oklch(0.78 0.18 80 / 0.15), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+.scanlines::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    oklch(0 0 0 / 0.015) 3px,
+    oklch(0 0 0 / 0.015) 6px
+  );
+  pointer-events: none;
+  z-index: 10;
+  border-radius: inherit;
+}
+
 /* ============================================================
    SCROLL-TRIGGERED ANIMATION SYSTEM
    Used by AnimateOnScroll component and useAnimateOnScroll hook.

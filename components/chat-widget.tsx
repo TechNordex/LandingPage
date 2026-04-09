@@ -13,7 +13,7 @@ export function ChatWidget() {
     const [messages, setMessages] = useState<Message[]>([
         {
             role: "assistant",
-            content: "Olá! 😊 Sou o Nordy, assistente virtual da Nordex Tech! Fico feliz em te ajudar. Pode perguntar o que quiser sobre a nossa empresa, serviços ou equipe!",
+            content: "Olá! Sou o Nordy, assistente virtual da Nordex Tech! Fico feliz em te ajudar. Pode perguntar o que quiser sobre a nossa empresa, serviços ou equipe!",
         },
     ])
     const [input, setInput] = useState("")
