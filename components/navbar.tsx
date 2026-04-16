@@ -111,7 +111,9 @@ export function Navbar() {
         {/* CTA */}
         <div className="hidden md:flex items-center gap-4">
           <a
-            href="/login"
+            href="https://portal.nordex.tech"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200"
           >
             Entrar
@@ -161,7 +163,9 @@ export function Navbar() {
               Conheça o Nordy
             </a>
             <a
-              href="/login"
+              href="https://portal.nordex.tech"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center justify-center px-5 py-3 rounded-md border border-border text-base font-medium text-foreground hover:bg-white/5 transition-colors"
             >
               Entrar

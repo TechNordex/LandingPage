@@ -1,12 +1,18 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
     const router = useRouter()
+    
+    // Auto-redirect to production portal
+    useEffect(() => {
+        window.location.href = 'https://portal.nordex.tech'
+    }, [])
+
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
